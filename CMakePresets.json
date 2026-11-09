@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "host",
+      "displayName": "Host unit tests (macOS / Linux / CI)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/host",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "FX_BUILD_TESTS": "ON",
+        "FX_PROFILE": "lite"
+      }
+    },
+    {
+      "name": "host-min",
+      "displayName": "Host unit tests, min profile (all optional features off)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/host-min",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "FX_BUILD_TESTS": "ON",
+        "FX_PROFILE": "min"
+      }
+    },
+    {
+      "name": "mac",
+      "displayName": "macOS AppKit Metal demo (this Mac)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/mac",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "12.0",
+        "FX_BUILD_TESTS": "OFF",
+        "FX_BUILD_MAC_APP": "ON",
+        "FX_PROFILE": "lite"
+      }
+    },
+    {
+      "name": "ios-sim",
+      "displayName": "iOS Simulator Xcode project",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/ios-sim",
+      "environment": { "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer" },
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "CMAKE_OSX_SYSROOT": "iphonesimulator",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "15.0",
+        "FX_BUILD_TESTS": "OFF",
+        "FX_BUILD_IOS_APP": "ON",
+        "FX_PROFILE": "lite"
+      }
+    },
+    {
+      "name": "ios-device",
+      "displayName": "iPhone device Xcode project",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/ios-device",
+      "environment": { "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer" },
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "CMAKE_OSX_SYSROOT": "iphoneos",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "15.0",
+        "FX_BUILD_TESTS": "OFF",
+        "FX_BUILD_IOS_APP": "ON",
+        "FX_PROFILE": "lite"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "host", "configurePreset": "host" },
+    { "name": "host-min", "configurePreset": "host-min" },
+    { "name": "mac", "configurePreset": "mac" },
+    { "name": "ios-sim", "configurePreset": "ios-sim",
+      "environment": { "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer" } },
+    { "name": "ios-device", "configurePreset": "ios-device",
+      "environment": { "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer" } }
+  ],
+  "testPresets": [
+    { "name": "host", "configurePreset": "host", "output": { "outputOnFailure": true } }
+  ]
+}

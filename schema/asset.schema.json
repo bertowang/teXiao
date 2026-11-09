@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TeXiao Asset",
+  "type": "object",
+  "required": ["schemaVersion", "id", "renderGraph"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 0, "maximum": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "scene": { "type": "string", "enum": ["camera", "edit", "all"], "default": "all" },
+    "requires": { "type": "array", "items": { "type": "string" } },
+    "resources": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": { "type": "string", "enum": ["lut2d", "rgba", "raw"] },
+          "generator": { "type": "string" },
+          "path": { "type": "string" },
+          "width": { "type": "integer", "minimum": 1, "maximum": 4096 },
+          "height": { "type": "integer", "minimum": 1, "maximum": 4096 }
+        }
+      }
+    },
+    "renderGraph": {
+      "type": "array", "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "enum": ["Input", "Effect", "LUT", "Blend", "Output", "Copy"] },
+          "shader": { "type": "string" },
+          "in": { "type": "string" },
+          "out": { "type": "string" },
+          "lut": { "type": "string" },
+          "texture": { "type": "string" },
+          "anchor": { "type": "string" },
+          "params": { "type": "object", "additionalProperties": { "type": "number" } }
+        }
+      }
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pass", "param", "keys"],
+        "properties": {
+          "pass": { "type": "string" },
+          "param": { "type": "string" },
+          "keys": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object", "required": ["t", "v"],
+              "properties": { "t": { "type": "number" }, "v": { "type": "number" } }
+            }
+          },
+          "easing": { "type": "string", "enum": ["linear", "easeIn", "easeOut", "easeInOut"] }
+        }
+      }
+    },
+    "ui": { "type": "object", "description": "仅供宿主 Demo 使用，引擎忽略" }
+  }
+}

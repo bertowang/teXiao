@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "demo_sticker",
+  "scene": "camera",
+  "requires": ["shader.beauty", "shader.sticker"],
+  "resources": {
+    "hat": { "type": "rgba", "generator": "hat" }
+  },
+  "renderGraph": [
+    { "id": "input", "type": "Input", "out": "rt0" },
+    { "id": "beauty", "type": "Effect", "shader": "beauty",
+      "in": "rt0", "out": "rt1", "params": { "strength": 0.4, "radius": 1.5 } },
+    { "id": "sticker", "type": "Blend", "shader": "sticker", "texture": "@resources.hat",
+      "anchor": "@ai.face.points[0]",
+      "in": "rt1", "out": "rt2",
+      "params": { "alpha": 0.95, "scale": 0.42, "anchorX": 0.5, "anchorY": 0.34 } },
+    { "id": "out", "type": "Output", "in": "rt2" }
+  ],
+  "timeline": [],
+  "ui": { "label": "贴纸", "primaryPass": "sticker", "primaryParam": "scale", "primaryRange": [0.05, 1.5] }
+}

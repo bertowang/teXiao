@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "demo_beauty",
+  "scene": "camera",
+  "requires": ["shader.beauty", "shader.lut", "shader.adjust"],
+  "resources": {
+    "toneLut": { "type": "lut2d", "generator": "warm" }
+  },
+  "renderGraph": [
+    { "id": "input", "type": "Input", "out": "rt0" },
+    { "id": "beauty", "type": "Effect", "shader": "beauty/soft_skin",
+      "in": "rt0", "out": "rt1", "params": { "strength": 0.55, "radius": 2.0 } },
+    { "id": "tone", "type": "LUT", "shader": "lut", "lut": "@resources.toneLut",
+      "in": "rt1", "out": "rt2", "params": { "intensity": 0.65 } },
+    { "id": "adjust", "type": "Effect", "shader": "adjust",
+      "in": "rt2", "out": "rt3", "params": { "brightness": 0.02, "contrast": 0.05, "saturation": 0.12 } },
+    { "id": "out", "type": "Output", "in": "rt3" }
+  ],
+  "timeline": [
+    { "pass": "tone", "param": "intensity",
+      "keys": [{ "t": 0, "v": 0.45 }, { "t": 2000000, "v": 0.85 }], "easing": "easeInOut" }
+  ],
+  "ui": { "label": "美颜+调色", "primaryPass": "beauty", "primaryParam": "strength", "primaryRange": [0, 1] }
+}

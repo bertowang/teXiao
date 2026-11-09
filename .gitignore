@@ -1,0 +1,27 @@
+# ---- 构建产物（CMake / Xcode / 本地自检）----
+build/
+cmake-build-*/
+__cmake_systeminformation/
+DerivedData/
+*.o
+*.a
+*.dylib
+*.so
+*.bin
+*.app/
+
+# ---- Xcode 用户态数据 ----
+xcuserdata/
+*.xcuserstate
+*.xcworkspace
+*.moved-aside
+
+# ---- macOS / 编辑器 ----
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# ---- Python 代码生成脚本 ----
+__pycache__/
+*.py[cod]

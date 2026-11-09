@@ -1,0 +1,35 @@
+// shaders/normalize.msl —— Graph 第 0 节点：外部纹理 -> 标准朝向 RGBA8。
+// 拼接在 common.msl 之后，共用 Uniforms / VSOut / transformedUV。
+
+fragment float4 fsNormalizeNV12(VSOut in [[stage_in]],
+                                constant Uniforms& U [[buffer(0)]],
+                                texture2d<float> yTex  [[texture(0)]],
+                                texture2d<float> uvTex [[texture(1)]],
+                                sampler smp [[sampler(0)]]) {
+    float2 uv = transformedUV(in.uv, U);
+    float y = yTex.sample(smp, uv).r;
+    float2 cbcr = uvTex.sample(smp, uv).rg - float2(0.5);
+    float yv = y;
+    if (U.p3.z > 0.5) {                       // video range 16-235
+        yv = (y - 16.0 / 255.0) * (255.0 / 219.0);
+        cbcr *= 255.0 / 224.0;
+    }
+    float3 rgb = float3(yv + 1.402 * cbcr.y,
+                        yv - 0.344136 * cbcr.x - 0.714136 * cbcr.y,
+                        yv + 1.772 * cbcr.x);  // BT.601
+    return float4(clamp(rgb, 0.0, 1.0), 1.0);
+}
+
+fragment float4 fsNormalizeBGRA(VSOut in [[stage_in]],
+                                constant Uniforms& U [[buffer(0)]],
+                                texture2d<float> tex [[texture(0)]],
+                                sampler smp [[sampler(0)]]) {
+    return tex.sample(smp, transformedUV(in.uv, U)).bgra;
+}
+
+fragment float4 fsNormalizeRGBA(VSOut in [[stage_in]],
+                                constant Uniforms& U [[buffer(0)]],
+                                texture2d<float> tex [[texture(0)]],
+                                sampler smp [[sampler(0)]]) {
+    return tex.sample(smp, transformedUV(in.uv, U));
+}

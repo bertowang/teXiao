@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "demo_identity",
+  "scene": "camera",
+  "requires": [],
+  "resources": {},
+  "renderGraph": [
+    { "id": "input", "type": "Input", "out": "rt0" },
+    { "id": "out", "type": "Output", "in": "rt0" }
+  ],
+  "timeline": [],
+  "ui": { "label": "原图", "primaryPass": "", "primaryParam": "" }
+}

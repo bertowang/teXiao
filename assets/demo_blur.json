@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "demo_blur",
+  "scene": "camera",
+  "requires": ["shader.blur", "shader.lut"],
+  "resources": {
+    "toneLut": { "type": "lut2d", "generator": "cool" }
+  },
+  "renderGraph": [
+    { "id": "input", "type": "Input", "out": "rt0" },
+    { "id": "blurH", "type": "Effect", "shader": "blur",
+      "in": "rt0", "out": "rt1", "params": { "radius": 2.0, "dirX": 1.0, "dirY": 0.0, "strength": 1.0 } },
+    { "id": "blurV", "type": "Effect", "shader": "blur",
+      "in": "rt1", "out": "rt2", "params": { "radius": 2.0, "dirX": 0.0, "dirY": 1.0, "strength": 1.0 } },
+    { "id": "tone", "type": "LUT", "shader": "lut", "lut": "@resources.toneLut",
+      "in": "rt2", "out": "rt3", "params": { "intensity": 0.75 } },
+    { "id": "out", "type": "Output", "in": "rt3" }
+  ],
+  "timeline": [],
+  "ui": { "label": "模糊链", "primaryPass": "blurH", "primaryParam": "radius", "primaryRange": [0, 8] }
+}

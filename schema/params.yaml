@@ -1,0 +1,32 @@
+# YAML 1.2 的 JSON 兼容子集（gen.py 用 json.loads 解析，无需 PyYAML）。
+# Pass 参数定义：schema-first 代码生成的唯一事实源。
+{
+  "schemaVersion": 1,
+  "passes": [
+    { "type": "LUT",     "shader": "lut",     "params": [
+      { "name": "intensity",  "default": 0.85, "min": 0.0, "max": 1.0 } ] },
+    { "type": "Adjust",  "shader": "adjust",  "params": [
+      { "name": "brightness", "default": 0.0,  "min": -1.0, "max": 1.0 },
+      { "name": "contrast",   "default": 0.0,  "min": -1.0, "max": 1.0 },
+      { "name": "saturation", "default": 0.0,  "min": -1.0, "max": 1.0 } ] },
+    { "type": "Beauty",  "shader": "beauty",  "params": [
+      { "name": "strength", "default": 0.55, "min": 0.0, "max": 1.0 },
+      { "name": "radius",   "default": 2.0,  "min": 0.5, "max": 6.0 } ] },
+    { "type": "Blur",    "shader": "blur",    "params": [
+      { "name": "radius",   "default": 1.5, "min": 0.0, "max": 8.0 },
+      { "name": "dirX",     "default": 1.0, "min": -1.0, "max": 1.0 },
+      { "name": "dirY",     "default": 0.0, "min": -1.0, "max": 1.0 },
+      { "name": "strength", "default": 1.0, "min": 0.0, "max": 1.0 } ] },
+    { "type": "Sticker", "shader": "sticker", "params": [
+      { "name": "alpha",    "default": 0.9,  "min": 0.0, "max": 1.0 },
+      { "name": "scale",    "default": 0.35, "min": 0.05, "max": 1.5 },
+      { "name": "anchorX",  "default": 0.5,  "min": 0.0, "max": 1.0 },
+      { "name": "anchorY",  "default": 0.35, "min": 0.0, "max": 1.0 } ] },
+    { "type": "Blend",   "shader": "blend",   "params": [
+      { "name": "alpha",    "default": 0.8,  "min": 0.0, "max": 1.0 },
+      { "name": "scale",    "default": 0.5,  "min": 0.05, "max": 1.5 },
+      { "name": "anchorX",  "default": 0.5,  "min": 0.0, "max": 1.0 },
+      { "name": "anchorY",  "default": 0.5,  "min": 0.0, "max": 1.0 } ] },
+    { "type": "Copy",    "shader": "copy",    "params": [] }
+  ]
+}

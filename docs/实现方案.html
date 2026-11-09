@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自研跨平台实时特效引擎 · 实现方案</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#ffffff; --ink:#1c2536; --ink-2:#44506a; --ink-3:#7a869c;
+    --line:#e3e8f0; --brand:#2b5bd7; --brand-2:#5b8cff; --brand-soft:#eef3ff;
+    --teal:#0e8f8a; --teal-soft:#e8f7f6; --amber:#b8770d; --amber-soft:#fff6e5;
+    --violet:#7048c4; --violet-soft:#f2edfd; --rose:#c0455e; --rose-soft:#fceff1;
+    --radius:14px; --shadow:0 2px 10px rgba(28,37,54,.055),0 12px 32px rgba(28,37,54,.045);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:24px}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.8 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+       -webkit-font-smoothing:antialiased}
+  code,.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;font-size:.88em}
+  code{background:#eef1f7;color:#2c3a5c;padding:1px 6px;border-radius:5px;word-break:break-word}
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  .hero{background:linear-gradient(125deg,#123a3c 0%,#126b6c 48%,#238f9c 100%);color:#fff;padding:52px 24px 46px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-120px;top:-160px;width:460px;height:460px;
+       background:radial-gradient(circle,rgba(255,255,255,.13),transparent 65%);border-radius:50%}
+  .hero-in{max-width:1240px;margin:0 auto;position:relative;z-index:1}
+  .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#b6e6e4;margin-bottom:14px}
+  .hero h1{font-size:34px;line-height:1.35;margin:0 0 12px;font-weight:700;letter-spacing:.5px}
+  .hero p.lead{margin:0;color:#dbf3f2;font-size:15.5px;max-width:900px}
+  .hero-tags{margin-top:22px;display:flex;flex-wrap:wrap;gap:9px}
+  .hero-tags span{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);
+       padding:5px 13px;border-radius:20px;font-size:12.5px}
+  .hero-meta{margin-top:24px;font-size:12.5px;color:#b6dedb;border-top:1px solid rgba(255,255,255,.18);padding-top:16px}
+
+  .wrap{max-width:1240px;margin:0 auto;padding:30px 24px 80px;display:grid;grid-template-columns:236px minmax(0,1fr);gap:34px;align-items:start}
+  .toc{position:sticky;top:22px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+       box-shadow:var(--shadow);padding:18px 14px;max-height:calc(100vh - 44px);overflow:auto}
+  .toc h3{margin:2px 8px 12px;font-size:12px;letter-spacing:.14em;color:var(--ink-3);text-transform:uppercase}
+  .toc a{display:block;padding:7px 10px;border-radius:8px;color:var(--ink-2);font-size:13.2px;line-height:1.5;border-left:3px solid transparent}
+  .toc a:hover{background:var(--teal-soft);text-decoration:none}
+  .toc a.sub{padding:5px 10px 5px 24px;font-size:12.6px;color:var(--ink-3)}
+  .toc a.sub2{padding:4px 10px 4px 38px;font-size:12px;color:var(--ink-3)}
+  .toc a.active{background:var(--teal-soft);color:var(--teal);border-left-color:var(--teal);font-weight:600}
+  .toc .grp{margin:12px 10px 4px;font-size:11px;letter-spacing:.12em;color:var(--ink-3);font-weight:600}
+  .progress{height:3px;background:var(--line);border-radius:3px;margin:14px 8px 0;overflow:hidden}
+  .progress i{display:block;height:100%;width:0;background:var(--teal);transition:width .12s linear}
+
+  main{min-width:0}
+  section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+          box-shadow:var(--shadow);padding:30px 34px 34px;margin-bottom:22px;scroll-margin-top:22px}
+  .sec-head{display:flex;align-items:center;gap:13px;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:24px}
+  .sec-no{flex:none;width:36px;height:36px;border-radius:10px;background:var(--teal);color:#fff;
+          display:grid;place-items:center;font-weight:700;font-size:15px}
+  .sec-head h2{margin:0;font-size:22px;letter-spacing:.3px}
+  .sec-head .sub{margin-left:auto;font-size:12.5px;color:var(--ink-3)}
+  .sec-intro{background:#f7fbfb;border:1px solid var(--line);border-radius:10px;padding:11px 15px;margin:-6px 0 20px;font-size:13.3px;color:var(--ink-2)}
+  .sec-intro b{color:var(--teal)}
+  h3{font-size:17px;margin:30px 0 12px;color:var(--ink);display:flex;align-items:center;gap:9px;scroll-margin-top:22px}
+  h3::before{content:"";width:4px;height:16px;border-radius:3px;background:var(--teal)}
+  h4{font-size:14.5px;margin:20px 0 8px;color:var(--ink-2)}
+  p{margin:0 0 12px;color:var(--ink-2)}
+  ul,ol{margin:0 0 14px;padding-left:22px;color:var(--ink-2)}
+  li{margin:5px 0}
+  strong{color:var(--ink)}
+  .muted{color:var(--ink-3);font-size:13px}
+
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .kpi{background:linear-gradient(160deg,#fff,#f7fdfc);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .kpi b{display:block;font-size:25px;line-height:1.2;color:var(--teal);font-weight:700}
+  .kpi span{font-size:12.5px;color:var(--ink-3)}
+  .card{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fcfdff}
+  .card h4{margin:0 0 7px;font-size:14.5px;color:var(--ink)}
+  .card p{font-size:13.4px;margin:0;line-height:1.75}
+  .card .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;margin-bottom:9px;font-weight:600}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
+  .rowno{display:inline-block;min-width:25px;margin-right:9px;padding:2px 0;border-radius:6px;
+         background:var(--teal-soft);color:var(--teal);font:700 11.5px/1.5 Consolas,Menlo,monospace;
+         text-align:center}
+  td.multiline:first-child{white-space:normal}
+  .sublist{margin:2px 0 0 34px;line-height:1.9}
+  .t-blue{background:var(--brand-soft);color:var(--brand)}
+  .t-teal{background:var(--teal-soft);color:var(--teal)}
+  .t-amber{background:var(--amber-soft);color:var(--amber)}
+  .t-violet{background:var(--violet-soft);color:var(--violet)}
+  .t-rose{background:var(--rose-soft);color:var(--rose)}
+
+  table{width:100%;border-collapse:collapse;font-size:13.4px;margin:10px 0 16px}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top;line-height:1.7}
+  th{background:#eef8f7;color:var(--ink);font-weight:600;white-space:nowrap}
+  tbody tr:nth-child(even){background:#fafcfc}
+  td:first-child{font-weight:600;color:var(--ink);white-space:nowrap}
+  .tbl-wrap{overflow-x:auto}
+
+  .note{border-left:4px solid var(--teal);background:var(--teal-soft);padding:13px 16px;border-radius:0 10px 10px 0;margin:16px 0;font-size:13.5px;color:#0a6663}
+  .note.warn{border-left-color:var(--amber);background:var(--amber-soft);color:#795515}
+  .note.blue{border-left-color:var(--brand);background:var(--brand-soft);color:#2b4172}
+  .note b{color:inherit}
+
+  .layer{display:grid;grid-template-columns:62px 1fr;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:14px 0}
+  .layer .row{display:contents}
+  .layer .lv{background:#e8f7f6;color:var(--teal);font-weight:700;display:grid;place-items:center;
+             border-bottom:1px solid var(--line);font-size:13px}
+  .layer .lc{padding:11px 15px;border-bottom:1px solid var(--line);font-size:13.4px;color:var(--ink-2)}
+  .layer .row:last-child .lv,.layer .row:last-child .lc{border-bottom:none}
+  .layer .lc b{color:var(--ink)}
+  .layer .lc code{margin-right:4px}
+
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:16px 0}
+  .flow .step{flex:1 1 140px;min-width:132px;background:#fbfcff;border:1px solid var(--line);border-top:3px solid var(--teal);
+              border-radius:10px;padding:11px 12px;font-size:12.8px;color:var(--ink-2);line-height:1.6}
+  .flow .step b{display:block;color:var(--ink);font-size:13.2px;margin-bottom:4px}
+  .flow .step small{display:block;color:var(--ink-3);font-size:11.5px;margin-top:5px;font-family:Consolas,Menlo,monospace}
+  .flow.vertical{flex-direction:column}
+  .flow.vertical .step{flex:none;min-width:0;width:100%}
+
+  .pipe{border:1px solid var(--line);border-radius:12px;padding:18px;background:#fbfcff;margin:14px 0}
+  .pipe .stage{display:flex;gap:14px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .pipe .stage:last-child{border-bottom:none}
+  .pipe .badge{flex:none;width:28px;height:28px;border-radius:50%;background:var(--teal-soft);color:var(--teal);
+               display:grid;place-items:center;font-size:12px;font-weight:700}
+  .pipe .stage div:last-child{font-size:13.4px;color:var(--ink-2)}
+  .pipe .stage b{color:var(--ink)}
+
+  pre{background:#101c2c;color:#d7e2f2;border-radius:11px;padding:16px 18px;overflow-x:auto;
+      font:12.6px/1.75 "SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;margin:10px 0 16px;
+      border:1px solid #22334c;tab-size:2}
+  pre code{background:none;color:inherit;padding:0;border-radius:0;word-break:normal}
+  pre .cm{color:#7d9ab0}
+  pre .k{color:#8fb6ff}
+  pre .s{color:#e5b567}
+  pre .t{color:#68d4c4}
+  .code-title{display:inline-block;background:#e8f7f6;color:var(--teal);font-size:11.5px;font-weight:600;
+              padding:3px 10px;border-radius:6px 6px 0 0;margin-bottom:-10px;position:relative;z-index:1}
+
+  .evidence{font-size:12.2px;color:var(--ink-3);background:#f7f9fc;border:1px dashed var(--line);
+            border-radius:9px;padding:10px 14px;margin-top:14px;line-height:1.8}
+  .evidence b{color:var(--ink-2)}
+  .evidence code{background:#e9edf5;font-size:11.6px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0 4px}
+  .chips span{background:#f2f5fb;border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:12.8px;color:var(--ink-2)}
+
+  .hl{counter-reset:hl;display:grid;gap:10px;margin:14px 0}
+  .hl .item{display:flex;gap:12px;align-items:flex-start;background:#fbfcff;border:1px solid var(--line);border-radius:10px;padding:12px 15px}
+  .hl .item::before{counter-increment:hl;content:counter(hl,decimal-leading-zero);flex:none;color:var(--teal);
+                    font-weight:700;font-size:13px;font-family:Consolas,monospace;padding-top:1px}
+  .hl .item div{font-size:13.4px;color:var(--ink-2)}
+  .hl .item b{color:var(--ink)}
+
+  .milestone{border-left:3px solid var(--teal);padding:4px 0 4px 20px;margin:18px 0;position:relative}
+  .milestone::before{content:"";position:absolute;left:-8px;top:12px;width:13px;height:13px;border-radius:50%;
+       background:#fff;border:3px solid var(--teal)}
+  .milestone h4{margin:0 0 5px;color:var(--ink);font-size:15px}
+  .milestone .meta{font-size:12px;color:var(--teal);font-weight:600;margin-bottom:6px}
+  .milestone p{font-size:13.4px;margin:0 0 6px}
+  .milestone ul{font-size:13.2px;margin:4px 0 0}
+
+  .io{display:grid;grid-template-columns:1fr 64px 1.1fr 64px 1fr;align-items:stretch;gap:0;margin:14px 0 6px}
+  .io .box{border:1px solid var(--line);border-radius:12px;padding:13px 15px;background:#fcfdff;font-size:13.2px;color:var(--ink-2)}
+  .io .box h4{margin:0 0 6px;font-size:14px;color:var(--ink)}
+  .io .box ul{margin:0;padding-left:18px;font-size:13px}
+  .io .box.core{background:linear-gradient(160deg,#f2fbfa,#e5f5f3);border-color:#bfe5e1}
+  .io .arr{display:grid;place-items:center;color:var(--teal);font-size:24px;font-weight:700}
+  .dfd-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px;margin:12px 0 8px}
+  .dfd{display:block;width:100%;min-width:780px;height:auto}
+  .dfd .lane{font-size:12px;font-weight:600;fill:#5d6b84;letter-spacing:.04em}
+  .dfd .bt{font-size:13px;font-weight:600;fill:#1c2536}
+  .dfd .bs{font-size:11px;fill:#6c7890}
+  .dfd .lbl{font-size:11px;fill:#5d6b84}
+  .dfd .box{fill:#fff;stroke:#c9d3e1;stroke-width:1.2}
+  .dfd .box.host{fill:#f7f8fb;stroke:#9aa6ba;stroke-dasharray:5 4}
+  .dfd .box.key{fill:#e8f7f6;stroke:#0e8f8a;stroke-width:1.6}
+  .dfd .box.ai{fill:#fbf9ff;stroke:#b7a3e3}
+  .dfd .box.st{fill:#fffaf0;stroke:#e2c27f}
+  @media(max-width:760px){ .io{grid-template-columns:1fr} .io .arr{transform:rotate(90deg);height:36px} }
+
+  footer{text-align:center;color:var(--ink-3);font-size:12.5px;padding:10px 20px 40px}
+  .top-btn{position:fixed;right:22px;bottom:22px;width:40px;height:40px;border-radius:50%;background:var(--teal);
+           color:#fff;display:grid;place-items:center;box-shadow:0 6px 18px rgba(14,143,138,.32);cursor:pointer;
+           font-size:17px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+  .top-btn.show{opacity:1;pointer-events:auto}
+
+  @media(max-width:960px){
+    .wrap{grid-template-columns:1fr;padding:22px 16px 60px}
+    .toc{position:static;max-height:none}
+    .g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+    section{padding:24px 20px}
+    .hero h1{font-size:26px}
+  }
+  @media(max-width:600px){ .g2,.g3,.g4{grid-template-columns:1fr} .sec-head .sub{display:none} }
+  @media print{
+    body{background:#fff}
+    .toc,.top-btn{display:none}
+    .wrap{display:block;padding:0}
+    section{box-shadow:none;break-inside:avoid;border:1px solid #ddd;margin-bottom:14px}
+    .hero{background:#126b6c !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    pre{background:#f4f6fa !important;color:#222 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-in">
+    <div class="eyebrow">Build Plan · From Zero to Production</div>
+    <h1>自研跨平台实时特效引擎<br>实现方案</h1>
+    <p class="lead">如果从零做一套跨平台实时特效引擎，<strong>先做什么、边界怎么切、哪些自研、哪些直接用开源</strong>？本文先用一页给出<strong>需求说明与数据流总图</strong>，再按「为什么 → 是什么 → 怎么跑 → 怎么做成」的顺序给出可执行设计：目标与取舍、分层架构与技术选型、核心接口契约、一帧的执行模型（含摄像头预览）、资源与质量保障，以及 6 个里程碑的落地路线。</p>
+    <div class="hero-tags">
+      <span>能力阶梯 L0 → L4</span><span>bgfx + RenderGraph</span><span>显式调度 · 状态接口隔离</span>
+      <span>摄像头预览 L0 跑通</span><span>Schema 驱动素材</span><span>AI 插件与错帧</span>
+      <span>特性裁剪矩阵</span><span>6 个里程碑</span>
+    </div>
+    <div class="hero-meta">配套阅读：<a href="architecture-overview.html" style="color:#a9f0e9;text-decoration:underline">《架构设计概要》</a>（成熟引擎是怎么设计的）· 本文回答「自己怎么做」· 2026-11-06 · v2.11（新增 09 章核心实现思想）</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="toc" id="toc">
+    <h3>目录 Contents</h3>
+    <div class="grp">导读 · 先看这里</div>
+    <a href="#p0">00 · 需求与数据流总览</a>
+    <a href="#p0-1" class="sub">0.1 需求说明</a>
+    <a href="#p0-2" class="sub">0.2 数据流简图</a>
+    <a href="#p0-3" class="sub">0.3 节点职责速查</a>
+    <a href="#p0-4" class="sub">0.4 概念：Graph 编译是什么</a>
+    <a href="#p0-4-1" class="sub2">0.4.1 一句话理解</a>
+    <a href="#p0-4-2" class="sub2">0.4.2 编译结果的数据结构</a>
+    <div class="grp">一 · 为什么这样做</div>
+    <a href="#p1">01 · 目标、边界与决策速览</a>
+    <a href="#p1-1" class="sub">1.1 关键决策速览</a>
+    <a href="#p1-2" class="sub">1.2 能力阶梯</a>
+    <a href="#p1-3" class="sub">1.3 明确的非目标</a>
+    <a href="#p1-4" class="sub">1.4 统一验收口径</a>
+    <a href="#p2">02 · 向成熟引擎借鉴什么</a>
+    <div class="grp">二 · 系统长什么样</div>
+    <a href="#p3">03 · 总体架构</a>
+    <a href="#p3-1" class="sub">3.1 六层结构</a>
+    <a href="#p3-2" class="sub">3.2 目录布局</a>
+    <a href="#p3-3" class="sub">3.3 六条设计原则</a>
+    <a href="#p4">04 · 技术选型</a>
+    <a href="#p4-1" class="sub">4.1 选型总表</a>
+    <a href="#p4-2" class="sub">4.2 要不要 ECS</a>
+    <a href="#p4-3" class="sub">4.3 摄像头预览选型</a>
+    <a href="#p5">05 · 核心接口契约</a>
+    <a href="#p5-1" class="sub">5.1 Engine 与 FrameDesc</a>
+    <a href="#p5-2" class="sub">5.2 Scheduler</a>
+    <a href="#p5-3" class="sub">5.3 IStateStore</a>
+    <a href="#p5-4" class="sub">5.4 素材 Schema</a>
+    <a href="#p5-5" class="sub">5.5 RenderGraph</a>
+    <a href="#p5-6" class="sub">5.6 IDetector</a>
+    <a href="#p5-7" class="sub">5.7 IPlatform</a>
+    <div class="grp">三 · 系统怎么跑</div>
+    <a href="#p6">06 · 一帧的执行</a>
+    <a href="#p6-1" class="sub">6.1 五阶段流水线</a>
+    <a href="#p6-2" class="sub">6.2 一帧伪代码</a>
+    <a href="#p6-3" class="sub">6.3 摄像头预览链路</a>
+    <a href="#p6-4" class="sub">6.4 时间语义与 seek</a>
+    <a href="#p6-5" class="sub">6.5 线程模型与同步</a>
+    <a href="#p7">07 · 资源与内存</a>
+    <a href="#p7-1" class="sub">7.1 池化、别名与所有权</a>
+    <a href="#p7-2" class="sub">7.2 外部纹理与前后台</a>
+    <a href="#p8">08 · 算法接入规范</a>
+    <a href="#p8-1" class="sub">8.1 效果的四要素</a>
+    <a href="#p8-2" class="sub">8.2 三种典型算法形态</a>
+    <a href="#p8-3" class="sub">8.3 稳定化与降级</a>
+    <div class="grp">四 · 怎么做成</div>
+    <a href="#p9">09 · 核心实现思想</a>
+    <a href="#p9-1" class="sub">9.1 架构：内核 / 插件 / 边界</a>
+    <a href="#p9-2" class="sub">9.2 数据结构与并发策略</a>
+    <a href="#p9-3" class="sub">9.3 线程与通信通道</a>
+    <a href="#p9-4" class="sub">9.4 同步通信骨架</a>
+    <a href="#p9-5" class="sub">9.5 七条不变量</a>
+    <a href="#p10">10 · 跨平台与裁剪</a>
+    <a href="#p10-1" class="sub">10.1 四级裁剪</a>
+    <a href="#p10-2" class="sub">10.2 CI 特性矩阵</a>
+    <a href="#p11">11 · 测试与可观测性</a>
+    <a href="#p12">12 · 分阶段实施路线</a>
+    <a href="#p13">13 · 风险与对策</a>
+    <a href="#p14">附 · 示例 / 术语 / 索引</a>
+    <a href="#p14-a" class="sub">A · M0 桌面宿主示例</a>
+    <a href="#p14-b" class="sub">B · 概念对照</a>
+    <a href="#p14-c" class="sub">C · 判断依据</a>
+    <a href="#p14-d" class="sub">D · 文档索引与后续主题</a>
+    <div class="progress"><i id="bar"></i></div>
+  </nav>
+
+  <main>
+
+    <!-- ============ 00 ============ -->
+    <section id="p0">
+      <div class="sec-head"><div class="sec-no">00</div><h2>需求与数据流总览</h2><div class="sub">Requirements &amp; Data Flow</div></div>
+      <div class="sec-intro"><b>一页看懂：</b>0.1 说明要做的东西<strong>是什么、给谁用、输入输出是什么</strong>；0.2 用一张图画出<strong>数据从宿主进来到画面出去</strong>经过的全部处理节点；0.3 逐个节点说明职责；0.4 用一句话说清图里的「Graph 编译」。后续章节都是对这张图的展开。</div>
+
+      <h3 id="p0-1">0.1 需求说明</h3>
+      <div class="note"><b>要做什么：</b>一个嵌入宿主 App（拍摄、直播、视频编辑）的<strong>跨平台实时特效引擎</strong>。宿主送入相机帧或视频帧，引擎按「特效素材」的描述在 GPU 上逐帧处理（美颜、滤镜、贴纸、AI 驱动的形变等），再把结果交还宿主或直接上屏。引擎只做处理，不负责采集、编码和 UI。</div>
+
+      <div class="io">
+        <div class="box"><h4>输入（宿主提供）</h4><ul>
+          <li>每帧的 GPU 纹理 + 时间戳 t（相机 pts 或视频时间）</li>
+          <li>纹理形态与方向：OES / NV12 / RGBA，旋转、镜像</li>
+          <li>特效素材 JSON 及其资源（LUT、贴纸图、模型）</li>
+          <li>运行时参数：如美颜强度</li>
+        </ul></div>
+        <div class="arr">→</div>
+        <div class="box core"><h4>引擎（本文要设计的部分）</h4><ul>
+          <li>加载期：校验素材，编译成渲染图</li>
+          <li>每帧：归一化输入 → 跑效果链 → 输出</li>
+          <li>异步：AI 推理，结果供效果读取</li>
+          <li>全程 GPU 零拷贝，按 t 确定性出图</li>
+        </ul></div>
+        <div class="arr">→</div>
+        <div class="box"><h4>输出（交还宿主）</h4><ul>
+          <li>直接上屏（Surface / Layer / 窗口）</li>
+          <li>或结果纹理 ID，供宿主继续编码 / 合成</li>
+          <li>或显式回读像素（测试、截图）</li>
+        </ul></div>
+      </div>
+
+      <h4>功能需求</h4>
+      <div class="tbl-wrap"><table>
+        <tr><th>编号</th><th>需求</th><th>说明</th><th>首次交付</th></tr>
+        <tr><td>F1</td><td>相机实时预览特效</td><td>接 Android / iOS 相机纹理，正确处理方向与前置镜像，30fps 稳定出图</td><td>L0 · M0</td></tr>
+        <tr><td>F2</td><td>多效果组合</td><td>美颜、LUT 滤镜、模糊、贴纸等多个 Pass 任意串联</td><td>L1 · M1</td></tr>
+        <tr><td>F3</td><td>素材驱动</td><td>特效以 JSON 素材下发；新增特效不改 C++、不发版</td><td>L2 · M2</td></tr>
+        <tr><td>F4</td><td>参数调节与动画</td><td>运行时调参数立即生效；关键帧 / 缓动动画按时间轴播放</td><td>L2 · M2</td></tr>
+        <tr><td>F5</td><td>AI 驱动特效</td><td>人脸关键点驱动贴纸与形变，人像分割驱动背景效果</td><td>L3 · M3</td></tr>
+        <tr><td>F6</td><td>后编辑与导出</td><td>对视频任意 seek、变速、倒放，导出成片</td><td>L4 · M4</td></tr>
+        <tr><td>F7</td><td>按业务裁剪</td><td>脚本、AI、3D、导出可按包体需求编译裁掉</td><td>L4 · M4</td></tr>
+      </table></div>
+
+      <h4>非功能需求</h4>
+      <div class="grid g3">
+        <div class="kpi"><b>33 ms</b><span>每帧总预算（30fps），GPU 部分 ≤ 16ms；AI 不阻塞渲染</span></div>
+        <div class="kpi"><b>零拷贝</b><span>帧数据全程是 GPU 句柄，CPU 回读只在显式调用时发生</span></div>
+        <div class="kpi"><b>3 端</b><span>Android / iOS / 桌面同一内核，GL ES / Metal / Vulkan / D3D 后端</span></div>
+        <div class="kpi"><b>确定性</b><span>同素材 + 同输入 + 同 t → 像素一致，可录制回放</span></div>
+        <div class="kpi"><b>稳定</b><span>显存不随帧数增长；坏素材、缺模型只降级不崩溃</span></div>
+        <div class="kpi"><b>可替换</b><span>图形后端、推理框架、脚本引擎都藏在自有接口后</span></div>
+      </div>
+      <p class="muted" style="margin-top:12px">范围之外：相机采集与权限、视频编码 UI、素材创作工具、模型训练（详见 1.3）。</p>
+
+      <h3 id="p0-2">0.2 数据流简图</h3>
+      <p>数据沿三条泳道流动：<strong>加载期</strong>把素材编译成可执行的渲染图（每个素材一次）；<strong>每帧</strong>在渲染线程上把输入纹理推过效果链；<strong>AI</strong> 在后台线程异步推理，结果以快照形式供效果读取，渲染从不等待它。</p>
+      <div class="dfd-wrap">
+        <svg class="dfd" viewBox="0 0 1000 472" role="img" aria-label="引擎数据流简图">
+          <defs>
+            <marker id="mT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0e8f8a"/></marker>
+            <marker id="mA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7048c4"/></marker>
+            <marker id="mP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#b8770d"/></marker>
+            <marker id="mG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7a869c"/></marker>
+          </defs>
+
+          <!-- 泳道 -->
+          <rect x="6" y="6" width="988" height="102" rx="12" fill="#f4f6fa"/>
+          <rect x="6" y="120" width="988" height="178" rx="12" fill="#eef8f7"/>
+          <rect x="6" y="310" width="988" height="106" rx="12" fill="#f5f1fd"/>
+          <text class="lane" x="20" y="28">① 加载期 · 每个素材一次（LoadAsset）</text>
+          <text class="lane" x="20" y="142">② 每帧 · 渲染线程（RenderFrame(t, frame)）</text>
+          <text class="lane" x="20" y="332">③ 异步 · AI Worker 线程（不阻塞渲染）</text>
+
+          <!-- ① 加载期 -->
+          <rect class="box" x="20" y="40" width="130" height="56" rx="9"/>
+          <text class="bt" x="85" y="63" text-anchor="middle">素材 JSON</text>
+          <text class="bs" x="85" y="82" text-anchor="middle">资源 · 参数轨道</text>
+          <rect class="box" x="175" y="40" width="170" height="56" rx="9"/>
+          <text class="bt" x="260" y="63" text-anchor="middle">Schema 校验</text>
+          <text class="bs" x="260" y="82" text-anchor="middle">版本迁移 · 能力降级</text>
+          <rect class="box" x="370" y="40" width="190" height="56" rx="9"/>
+          <text class="bt" x="465" y="63" text-anchor="middle">Graph 编译</text>
+          <text class="bs" x="465" y="82" text-anchor="middle">拓扑排序 · RT 别名 · 参数索引</text>
+          <rect class="box key" x="585" y="40" width="175" height="56" rx="9"/>
+          <text class="bt" x="672" y="63" text-anchor="middle">AssetRuntime</text>
+          <text class="bs" x="672" y="82" text-anchor="middle">已编译 Graph + 参数布局</text>
+          <line x1="150" y1="68" x2="173" y2="68" stroke="#7a869c" stroke-width="1.6" marker-end="url(#mG)"/>
+          <line x1="345" y1="68" x2="368" y2="68" stroke="#7a869c" stroke-width="1.6" marker-end="url(#mG)"/>
+          <line x1="560" y1="68" x2="583" y2="68" stroke="#7a869c" stroke-width="1.6" marker-end="url(#mG)"/>
+
+          <!-- ② 每帧主链 -->
+          <rect class="box host" x="20" y="155" width="110" height="56" rx="9"/>
+          <text class="bt" x="75" y="178" text-anchor="middle">宿主</text>
+          <text class="bs" x="75" y="197" text-anchor="middle">相机 · 解码器</text>
+          <rect class="box" x="150" y="155" width="130" height="56" rx="9"/>
+          <text class="bt" x="215" y="178" text-anchor="middle">RenderFrame</text>
+          <text class="bs" x="215" y="197" text-anchor="middle">t = pts · FrameDesc</text>
+          <rect class="box" x="300" y="155" width="105" height="56" rx="9"/>
+          <text class="bt" x="352" y="178" text-anchor="middle">Import</text>
+          <text class="bs" x="352" y="197" text-anchor="middle">零拷贝导入</text>
+          <rect class="box key" x="425" y="155" width="125" height="56" rx="9"/>
+          <text class="bt" x="487" y="178" text-anchor="middle">NormalizePass</text>
+          <text class="bs" x="487" y="197" text-anchor="middle">旋转 · 镜像 → RGBA8</text>
+          <rect class="box key" x="575" y="155" width="185" height="56" rx="9"/>
+          <text class="bt" x="667" y="178" text-anchor="middle">效果 Pass 链</text>
+          <text class="bs" x="667" y="197" text-anchor="middle">美颜 → LUT → 贴纸 …</text>
+          <rect class="box" x="785" y="155" width="195" height="56" rx="9"/>
+          <text class="bt" x="882" y="178" text-anchor="middle">Output</text>
+          <text class="bs" x="882" y="197" text-anchor="middle">Present · ResultTexture</text>
+          <line x1="130" y1="183" x2="148" y2="183" stroke="#0e8f8a" stroke-width="2" marker-end="url(#mT)"/>
+          <line x1="280" y1="183" x2="298" y2="183" stroke="#0e8f8a" stroke-width="2" marker-end="url(#mT)"/>
+          <line x1="405" y1="183" x2="423" y2="183" stroke="#0e8f8a" stroke-width="2" marker-end="url(#mT)"/>
+          <line x1="550" y1="183" x2="573" y2="183" stroke="#0e8f8a" stroke-width="2" marker-end="url(#mT)"/>
+          <line x1="760" y1="183" x2="783" y2="183" stroke="#0e8f8a" stroke-width="2" marker-end="url(#mT)"/>
+
+          <!-- 参数：状态存储 -->
+          <rect class="box st" x="560" y="236" width="150" height="50" rx="9"/>
+          <text class="bt" x="635" y="256" text-anchor="middle">IStateStore</text>
+          <text class="bs" x="635" y="274" text-anchor="middle">Timeline(t) + SetParam</text>
+          <line x1="635" y1="236" x2="635" y2="213" stroke="#b8770d" stroke-width="1.6" stroke-dasharray="2 3" marker-end="url(#mP)"/>
+
+          <!-- 编译产物 → 效果链 -->
+          <line x1="672" y1="96" x2="672" y2="153" stroke="#b8770d" stroke-width="1.6" stroke-dasharray="2 3" marker-end="url(#mP)"/>
+          <text class="lbl" x="680" y="138">编译好的 Graph</text>
+
+          <!-- ③ AI 异步 -->
+          <rect class="box ai" x="412" y="346" width="150" height="56" rx="9"/>
+          <text class="bt" x="487" y="369" text-anchor="middle">DetectorHub</text>
+          <text class="bs" x="487" y="388" text-anchor="middle">有界队列 · 深度 2</text>
+          <rect class="box ai" x="590" y="346" width="150" height="56" rx="9"/>
+          <text class="bt" x="665" y="369" text-anchor="middle">推理 Worker</text>
+          <text class="bs" x="665" y="388" text-anchor="middle">ONNX RT / ncnn</text>
+          <rect class="box ai" x="770" y="346" width="150" height="56" rx="9"/>
+          <text class="bt" x="845" y="369" text-anchor="middle">结果快照</text>
+          <text class="bs" x="845" y="388" text-anchor="middle">不可变 · last-good</text>
+          <line x1="487" y1="211" x2="487" y2="344" stroke="#7048c4" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#mA)"/>
+          <text class="lbl" x="480" y="270" text-anchor="end">归一化纹理 + Fence</text>
+          <line x1="562" y1="374" x2="588" y2="374" stroke="#7048c4" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#mA)"/>
+          <line x1="740" y1="374" x2="768" y2="374" stroke="#7048c4" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#mA)"/>
+          <polyline points="845,346 845,226 735,226 735,213" fill="none" stroke="#7048c4" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#mA)"/>
+          <text class="lbl" x="852" y="270">@ai.* 只读最新快照</text>
+
+          <!-- 图例 -->
+          <line x1="20" y1="446" x2="56" y2="446" stroke="#0e8f8a" stroke-width="2" marker-end="url(#mT)"/>
+          <text class="lbl" x="64" y="450">GPU 纹理流（同步）</text>
+          <line x1="200" y1="446" x2="236" y2="446" stroke="#7048c4" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#mA)"/>
+          <text class="lbl" x="244" y="450">AI 异步（允许错 0~1 帧）</text>
+          <line x1="410" y1="446" x2="446" y2="446" stroke="#b8770d" stroke-width="1.6" stroke-dasharray="2 3" marker-end="url(#mP)"/>
+          <text class="lbl" x="454" y="450">参数 / 编译产物</text>
+          <line x1="580" y1="446" x2="616" y2="446" stroke="#7a869c" stroke-width="1.6" marker-end="url(#mG)"/>
+          <text class="lbl" x="624" y="450">加载期处理</text>
+          <rect class="box key" x="720" y="437" width="22" height="16" rx="4"/>
+          <text class="lbl" x="750" y="450">核心节点</text>
+          <rect class="box host" x="820" y="437" width="22" height="16" rx="4"/>
+          <text class="lbl" x="850" y="450">引擎外部</text>
+        </svg>
+      </div>
+      <p class="muted">读图要点：主链从左到右只传 GPU 句柄；NormalizePass 之后所有节点只面对标准 RGBA8；AI 从主链「分叉」出去、再以只读快照「汇入」效果链，两条路径之间没有等待。</p>
+
+      <h3 id="p0-3">0.3 节点职责速查</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>节点</th><th>输入 → 输出</th><th>何时 / 哪个线程</th><th>详见</th></tr>
+        <tr><td>Schema 校验</td><td>素材 JSON → 合法且已迁移到最新版本的素材；缺失能力标记为降级</td><td>加载期 · 调用线程</td><td>5.4</td></tr>
+        <tr><td>Graph 编译</td><td>素材中的 <code>renderGraph</code> → 拓扑序 Pass 列表 + RT 别名表 + 整数参数索引</td><td>加载期 · 调用线程</td><td>5.5 · 5.3 · <a href="#p0-4-1">0.4.1</a></td></tr>
+        <tr><td>RenderFrame</td><td>t + <code>FrameDesc</code> → 触发五阶段流水线</td><td>每帧 · 宿主 GL 线程</td><td>5.1 · 6.2</td></tr>
+        <tr><td>Import</td><td>宿主原生句柄 → 本帧有效的 <code>ImportedTexture</code>（不拷贝、不接管所有权）</td><td>每帧 Prepare</td><td>5.7 · 7.2</td></tr>
+        <tr><td>NormalizePass</td><td>OES / NV12 / RGBA + 方向 → 标准朝向 RGBA8（处理分辨率）</td><td>每帧 Prepare</td><td>5.5 · 6.3</td></tr>
+        <tr><td>IStateStore</td><td>按 t 求值的轨道参数 + 宿主 <code>SetParam</code> → 本帧参数表</td><td>每帧 Prepare / Simulate</td><td>5.3</td></tr>
+        <tr><td>DetectorHub / Worker</td><td>归一化纹理 → 关键点、分割 mask 等；队列满时丢最旧帧</td><td>每帧 Detect 投递 · Worker 线程执行</td><td>5.6 · 8.3</td></tr>
+        <tr><td>结果快照</td><td>推理结果 → 不可变快照；无新结果时保留 last-good</td><td>Worker 发布 · 渲染线程只读</td><td>5.6 · 6.5</td></tr>
+        <tr><td>效果 Pass 链</td><td>RGBA8 + 参数表 + AI 快照 → 处理后纹理；FBO 从池中取还</td><td>每帧 Render</td><td>5.5 · 7 · 8</td></tr>
+        <tr><td>Output</td><td>最终纹理 → 上屏 / 结果纹理 ID / 回读像素</td><td>每帧 Present</td><td>6.1</td></tr>
+      </table></div>
+
+      <h3 id="p0-4">0.4 概念补注：Graph 编译是什么</h3>
+      <p class="muted">0.2 的图里有「Graph 编译」和「已编译 Graph」，0.3 的表里也有「Graph 编译」一行。0.4.1 用一句话说清概念，0.4.2 给出具体的数据结构骨架，都不用先读第 05 章。</p>
+
+      <h4 id="p0-4-1">0.4.1 一句话理解</h4>
+      <div class="note"><b>「编译」不是编译 C++ 代码</b>，而是<strong>把人写的素材 JSON，提前整理成引擎每帧能直接照着做的执行清单</strong>。这份清单就是「已编译 Graph」。<strong>加载素材时做一次，之后每帧只照单执行。</strong></div>
+
+      <div class="grid g2">
+        <div class="card"><span class="tag t-blue">打个比方</span><h4>菜谱 → 备菜</h4><p>素材 JSON 像菜谱：「先磨皮、再调色、最后贴贴纸」。厨房不会每来一桌客人都重读菜谱、找调料、想顺序；而是开业前把步骤排好、调料分装、盘子编号。出餐时只按编号取用。<strong>备菜 = 编译，分装好的料 = 已编译 Graph。</strong></p></div>
+        <div class="card"><span class="tag t-teal">为什么要提前做</span><h4>每帧只有 33ms</h4><p>解析 JSON、按字符串找 Shader、临时决定用哪张中间纹理，都是慢活，放在 30fps 的热路径里必然掉帧。所以把这些「一次性的思考」挪到加载期，运行时只剩数组遍历和 GPU 调用。</p></div>
+      </div>
+
+      <span class="code-title">编译前 → 编译后（同一个磨皮效果）</span>
+<pre><code><span class="cm">// 素材 JSON：人写的，全是字符串</span>
+{ <span class="s">"id"</span>:<span class="s">"beauty"</span>, <span class="s">"shader"</span>:<span class="s">"beauty/soft_skin"</span>,
+  <span class="s">"in"</span>:<span class="s">"rt0"</span>, <span class="s">"out"</span>:<span class="s">"rt1"</span>, <span class="s">"params"</span>:{ <span class="s">"strength"</span>:0.6 } }
+
+<span class="cm">// 已编译 Graph：内存里的一张表，每帧直接读</span>
+Pass[1] = { shader = handle#12, in = fbo#1, out = fbo#2,
+            strength = paramTable[7] }   <span class="cm">// 名字全变成句柄 / 下标</span></code></pre>
+
+      <p>「编译」这一步具体只做三件事：</p>
+      <div class="flow">
+        <div class="step"><b>① 排顺序、查错</b>按 <code>in/out</code> 排出执行先后；成环、引用了不存在的资源，加载期就报错<small>拓扑排序</small></div>
+        <div class="step"><b>② 规划中间纹理</b>算出每张中间图的存活区间，不重叠的共用同一块 FBO<small>5 个 Pass 常只需 2~3 张</small></div>
+        <div class="step"><b>③ 名字变下标</b>Shader 名 → 句柄，参数名 → 数组下标<small>运行期不再查字符串</small></div>
+      </div>
+      <div class="note warn"><b>两个常见误会：</b>① 产物不是 <code>.cpp</code>、不是机器码、也不写磁盘，只是内存里的结构体（即图中的 <code>AssetRuntime</code>）；② 调参数不用重编译，<code>SetParam</code> 和时间轴只改表里那个数值，<strong>换素材或素材结构变了才重编译</strong>。另注意：5.4 的「代码生成」是<strong>构建期</strong>用 Python 生成 C++，与此处的运行期 Graph 编译是两回事。</div>
+      <p class="muted">如果只是理解概念，读到这里就够了；0.4.2 说说它内部大致怎么组织。</p>
+
+      <h4 id="p0-4-2">0.4.2 编译结果用什么数据结构存</h4>
+      <div class="note"><b>答案：</b>不是一张用指针连起来的图，而是<strong>几张顺序排列的「表」，彼此用序号互相引用</strong>。它只是一份常驻内存、加载后只读的数据，归素材级的运行时对象持有；不生成代码文件，也不写磁盘。</div>
+      <p class="muted">下面只讲通用的组织思路，不对应任何既有工程的具体实现；各张表的名字也只是便于称呼，落地时可自行命名。</p>
+
+      <p><strong>编译结果里一共四张表：</strong></p>
+      <div class="tbl-wrap"><table>
+        <tr><th>表</th><th>存什么</th><th>为什么需要</th></tr>
+        <tr><td>执行顺序表</td><td>按先后排好的一串步骤。每一步写明：用哪个效果、读哪几张中间图、结果写到哪张中间图、参数在数值数组的哪一段，以及「是最终输出」「已降级为空操作」等标记</td><td>每帧从头到尾走一遍即可，不必再判断顺序，也不必解析名字</td></tr>
+        <tr><td>中间图登记表</td><td>每张逻辑中间图的尺寸、格式、首次写入与末次读取的位置，以及它对应哪一块可复用的物理画布</td><td>用完的画布能借给后面的步骤，控制显存峰值</td></tr>
+        <tr><td>静态资源表</td><td>已加载好的 LUT、贴纸图等纹理</td><td>步骤里只记序号，需要时直接取</td></tr>
+        <tr><td>参数布局表</td><td>每个参数固定对应数值数组里的一个位置；<strong>具体数值不放在这里</strong></td><td>调参数、播动画只改数值，不用重做编译</td></tr>
+      </table></div>
+      <p class="muted">「物理画布」可以理解成一组能反复擦写的画板：逻辑中间图只是记录「第几步写到哪块画板」，两张生命周期不重叠的中间图可以共用同一块画板。</p>
+
+      <p><strong>每帧怎么消费这份结果：</strong></p>
+      <div class="flow">
+        <div class="step"><b>① 取下一步</b>按顺序表读下一条记录，顺序早已排定<small>不排序、不比较字符串</small></div>
+        <div class="step"><b>② 找画布</b>用记录里的中间图序号查登记表，得到画板编号，从资源池取用<small>不新建资源，用完归还</small></div>
+        <div class="step"><b>③ 取参数执行</b>按记录里的参数区间，从数值数组取一段交给对应效果<small>效果本身不保存跨帧状态</small></div>
+        <div class="step"><b>④ 继续下一步</b>本步输出即下一步输入，直到最终输出<small>整帧就是一次线性遍历</small></div>
+      </div>
+
+      <p><strong>为什么普遍这么组织：</strong></p>
+      <div class="tbl-wrap"><table>
+        <tr><th>设计选择</th><th>带来的好处</th></tr>
+        <tr><td>用序号引用，不用指针和字符串</td><td>数据连续、缓存友好、运行期不申请内存；整份可复制，也便于落盘做确定性回放</td></tr>
+        <tr><td>执行顺序预先排好</td><td>每帧只做一次线性遍历，没有临时判断</td></tr>
+        <tr><td>逻辑中间图与物理画布分开</td><td>复用只改一个编号；多个效果往往只需少数几块画布</td></tr>
+        <tr><td>参数布局与参数值分开</td><td>调参、时间轴动画都不触碰编译结果，所以不用重编译</td></tr>
+        <tr><td>编译结果只读</td><td>天然线程安全；每帧新建的只是从池里取的画布句柄</td></tr>
+      </table></div>
+      <p class="muted">同类渲染图系统大体都是这个形状：一张步骤表 + 一张资源表 + 可复用的画布编号。规模更大时可把几张表合成一整块连续内存、改成按列存储，或把编译结果缓存成二进制以跳过重复解析；<strong>MVP 阶段按上面的表组织就够了</strong>。更细的编译与执行见 5.5，参数下标见 5.3，画布复用见 7.1。</p>
+    </section>
+
+    <!-- ============ 01 ============ -->
+    <section id="p1">
+      <div class="sec-head"><div class="sec-no">01</div><h2>目标、边界与决策速览</h2><div class="sub">Scope</div></div>
+
+      <div class="note"><b>一句话方案：</b>不要试图「复刻一套成熟特效 SDK」。先交付一个<strong>时间戳驱动、素材描述、GPU 零拷贝、能接真实相机、多平台可跑</strong>的最小内核，把<strong>渲染图、资源池、调度契约</strong>这三根支柱立稳，再按能力阶梯叠加脚本、AI、后编辑与产品化。这类引擎值得学的是<strong>结构性决策</strong>，而不是它的规模。</div>
+
+      <h3 id="p1-1">1.1 关键决策速览（先看结论，再看论证）</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>问题</th><th>结论</th><th>论证位置</th></tr>
+        <tr><td>帧怎么驱动</td><td>唯一入口 <code>RenderFrame(Time t, const FrameDesc&amp;)</code>，t 为绝对时间；没有 <code>Update(dt)</code></td><td>5.1 · 6.1</td></tr>
+        <tr><td>图形后端</td><td>bgfx，外包一层自有 <code>IGraphicsDevice</code>，保留替换能力</td><td>4.1</td></tr>
+        <tr><td>渲染怎么组织</td><td>素材里显式声明 RenderGraph；加载期编译（拓扑排序 + RT 别名），每帧只遍历</td><td>5.5 · 7</td></tr>
+        <tr><td>System 怎么调度</td><td>自研 <code>Scheduler</code>：Phase + order + after 依赖，构建期环检测</td><td>5.2</td></tr>
+        <tr><td>要不要 ECS</td><td><strong>MVP 不用</strong>；运行时状态走 <code>IStateStore</code> 接口，M0~M2 用扁平实现，出现升级信号再换 EnTT</td><td>4.2 · 5.3</td></tr>
+        <tr><td>摄像头预览</td><td>宿主采集；引擎导入外部纹理并自动插入 <code>NormalizePass</code>；<strong>相机 pts 就是 t</strong>；L0 即跑通</td><td>4.3 · 6.3</td></tr>
+        <tr><td>AI 怎么接</td><td><code>IDetector</code> 插件 + 有界队列（深度 2）+ 不可变快照，允许错帧，渲染永不等待</td><td>5.6 · 8.3</td></tr>
+        <tr><td>脚本</td><td>L0~L1 纯数据驱动；M2 起引入 QuickJS</td><td>4.1 · 12</td></tr>
+        <tr><td>包体裁剪</td><td>单一 <code>features.json</code> → 生成 <code>features.h</code> → 四级裁剪 + no-op 实现</td><td>10</td></tr>
+      </table></div>
+
+      <h3 id="p1-2">1.2 能力阶梯（每一级都必须可演示）</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>级别</th><th>能力</th><th>架构验证点</th><th>典型验收</th></tr>
+        <tr><td>L0 骨架</td><td>外部纹理输入 → 单个 Shader → 上屏；时间戳驱动；<strong>接入真实摄像头预览</strong></td><td>RHI 抽象、零拷贝导入、帧循环、外部纹理归一化</td><td>桌面 + 一个移动端跑通同一 LUT 素材；相机预览 30fps 且旋转/镜像正确</td></tr>
+        <tr><td>L1 渲染图</td><td>多 Pass、FBO 池、混合与分支、素材热加载</td><td>RenderGraph、Transient 资源复用</td><td>3 个效果串联，显存不随帧数增长</td></tr>
+        <tr><td>L2 内容层</td><td>参数 Schema + 代码生成、时间轴/关键帧、参数热更新</td><td>数据驱动、反射与版本迁移</td><td>新增一种特效<strong>不改 C++</strong>，只下发 JSON</td></tr>
+        <tr><td>L3 智能层</td><td>AI 探测器插件、异步队列、人脸/分割驱动特效</td><td>跨线程一致性、错帧与稳定化</td><td>低帧率下自动错帧，画面不撕裂不闪烁</td></tr>
+        <tr><td>L4 产品化</td><td>后编辑 seek/变速、导出编码、多平台门面、裁剪矩阵</td><td>纯函数式时间语义、包体治理</td><td>CI 特性矩阵全绿，包体可按业务裁剪</td></tr>
+      </table></div>
+
+      <h3 id="p1-3">1.3 明确的非目标（防止 scope 失控）</h3>
+      <div class="grid g2">
+        <div class="card"><span class="tag t-rose">不做</span><h4>不自研模型与训练</h4><p>人脸、分割、深度等一律视为<strong>外部模型插件</strong>，引擎只定义接口、前后处理与调度。模型可换、可裁剪、可缺位降级。</p></div>
+        <div class="card"><span class="tag t-rose">不做</span><h4>不追求专业动效格式全兼容</h4><p>不实现 AE 表达式引擎与完整时间特效体系。动画用「关键帧 + 缓动 + 参数轨道」表达，够用且可测。</p></div>
+        <div class="card"><span class="tag t-rose">不做</span><h4>不做创作工具与相机 App</h4><p>素材由外部工具生成 JSON；相机权限、会话、对焦曝光由宿主负责。引擎只消费素材与纹理。</p></div>
+        <div class="card"><span class="tag t-rose">不做</span><h4>不一次性覆盖全部平台</h4><p>先「桌面 + 一个移动端」，M1 再引入第 2 个移动平台，用来倒逼平台抽象是否真的干净。</p></div>
+      </div>
+
+      <h3 id="p1-4">1.4 统一验收口径</h3>
+      <p>所有里程碑都用同一把尺子，避免「能跑」被当成「做成」：</p>
+      <div class="grid g4">
+        <div class="kpi"><b>确定性</b><span>同素材 + 同输入帧 + 同时间戳 → 像素一致</span></div>
+        <div class="kpi"><b>零增长</b><span>连续 1000 帧显存与句柄数不单调上升</span></div>
+        <div class="kpi"><b>可降级</b><span>关掉任一特性仍能编译、仍能出图</span></div>
+        <div class="kpi"><b>可回放</b><span>API 调用序列落盘后可离线复现</span></div>
+      </div>
+      <div class="note blue" style="margin-top:16px"><b>前提假设：</b>2~3 名有图形 / 移动端经验的工程师；输入由宿主提供（相机或解码后的纹理）；目标 30fps 起；允许使用成熟开源库，但不依赖不可替换的二进制黑盒。若团队已有自研 RHI 或脚本系统，可替换本文对应选型，<strong>接口契约保持不变</strong>。</div>
+    </section>
+
+    <!-- ============ 02 ============ -->
+    <section id="p2">
+      <div class="sec-head"><div class="sec-no">02</div><h2>向成熟引擎借鉴什么</h2><div class="sub">Borrow / Replace / Simplify</div></div>
+      <p>「自己实现一个类似的」最容易滑向两个极端：照抄，或者空谈。下表逐项给出判断：<strong>哪些思想照搬、哪些实现替换、哪些规模压缩</strong>。第一列的编号 01~08 只用于对照与引用，<strong>不代表优先级或实施顺序</strong>。</p>
+      <div class="tbl-wrap"><table>
+        <tr><th>常见做法 / 可观察现象</th><th>本方案</th><th>原因</th></tr>
+        <tr><td class="multiline"><span class="rowno">01</span>① 素材描述成数据、由反射构建运行时状态<div class="sublist">② 绝对时间戳<br>③ GPU 零拷贝<br>④ 帧缓冲池<br>⑤ AI 异步错帧</div></td><td><span class="tag t-blue">直接借鉴</span> 这五项结构性决策原样保留</td><td>经过大规模业务验证，且与具体库无关，复现成本低</td></tr>
+        <tr><td><span class="rowno">02</span>用 ECS 库做组件存储与组合查询，但弃用框架自带的调度器，按注册顺序决定处理单元优先级</td><td><span class="tag t-teal">替换</span> 调度改为<strong>显式 order + 依赖声明 + 构建期环检测</strong>；状态存储藏在 <code>IStateStore</code> 后面，MVP 不引入 ECS</td><td>隐式顺序在几十个处理单元后极易踩坑；显式图已消解大部分组合查询需求（论证见 4.2）</td></tr>
+        <tr><td><span class="rowno">03</span>由运行时组件树隐式推导出渲染树</td><td><span class="tag t-teal">替换</span> 素材里<strong>显式声明 RenderGraph</strong>；后期再加「组件树 → Graph」编译器</td><td>显式图可读、可 diff、可做资源别名分析，也便于写金样图测试</td></tr>
+        <tr><td><span class="rowno">04</span>相机纹理单独入口，由输入预处理环节做方向 / 裁剪归一</td><td><span class="tag t-teal">沿用思路</span> <code>FrameDesc</code> 携带方向与纹理类型，Graph 第 0 节点 <code>NormalizePass</code> 统一归一</td><td>一处修正，所有效果 Pass 只面对 RGBA8 与标准朝向（见 4.3）</td></tr>
+        <tr><td><span class="rowno">05</span>重型 JS 引擎 + 自动生成的多语言绑定层</td><td><span class="tag t-amber">延后 / 替换</span> L0~L1 纯数据驱动；M2 引入 <strong>QuickJS</strong> + Schema 生成绑定</td><td>重型 JS 引擎的体积与构建复杂度对自研团队负担重；先验证「参数轨道 + 事件表」是否够用</td></tr>
+        <tr><td><span class="rowno">06</span>预集成的闭源 AI 能力集 / 厂商 SDK</td><td><span class="tag t-amber">替换</span> <code>IDetector</code> 接口 + ONNX Runtime Mobile / ncnn 可插拔后端</td><td>模型与引擎解耦，缺模型时特效自动降级，也便于合规与问题定位</td></tr>
+        <tr><td><span class="rowno">07</span>多套 JSON 配置经构建脚本分路注入编译宏</td><td><span class="tag t-amber">简化</span> 单一 <code>features.json</code> → 生成 <code>features.h</code> → 四级裁剪</td><td>单一事实源、可校验；避免「配置改了某一端忘了同步」</td></tr>
+        <tr><td><span class="rowno">08</span>数十个 AI 能力单元、数百个 Shader、完整 3D / 物理 / AR</td><td><span class="tag t-rose">压缩</span> 起步 2~3 个探测器、5~10 个效果；3D / 物理推到 L4 之后</td><td>架构正确性与效果数量无关；先用少量效果把池化、时序、降级验证透</td></tr>
+      </table></div>
+      <p class="muted">按编号对照：02 的 ECS 判断见 4.2，04 的相机预览见 4.3，07 的裁剪方案见第 10 章；01 里的五项结构性决策贯穿 03、05、06 章。</p>
+      <div class="note warn"><b>最容易踩的坑：</b>把「特效数量」当成项目进度。这类引擎的复杂度主要来自多年累积的效果与兼容逻辑，<strong>内核骨架其实很小</strong>。自研 80% 的风险集中在渲染图资源管理、跨线程时序、跨后端一致性三处，早期投入应压在这里。</div>
+    </section>
+
+    <!-- ============ 03 ============ -->
+    <section id="p3">
+      <div class="sec-head"><div class="sec-no">03</div><h2>总体架构</h2><div class="sub">Architecture</div></div>
+
+      <h3 id="p3-1">3.1 六层结构</h3>
+      <div class="layer">
+        <div class="row"><div class="lv">A</div><div class="lc"><b>API 层</b> — <code>include/fx/</code>：<code>Engine</code> / <code>FrameDesc</code> / <code>IRenderTarget</code>；稳定的 C++ ABI 边界，宿主唯一可见部分</div></div>
+        <div class="row"><div class="lv">C</div><div class="lc"><b>核心层</b> — <code>core/</code>：<code>Scheduler</code>（System 调度）、<code>IStateStore</code>（运行时状态）、<code>FrameContext</code>、<code>AssetLoader</code>、<code>Timeline</code>、<code>Profiler</code></div></div>
+        <div class="row"><div class="lv">G</div><div class="lc"><b>渲染层</b> — <code>render/</code>：<code>IGraphicsDevice</code>（包装 bgfx）、<code>RenderGraph</code> 编译器与执行器、<code>FrameBufferPool</code>、<code>RendererPool</code>、内置 Pass（含 <code>NormalizePass</code>）</div></div>
+        <div class="row"><div class="lv">F</div><div class="lc"><b>能力层</b> — <code>effects/</code>（Shader + Pass 参数）、<code>ai/</code>（探测器插件）、<code>media/</code>（解码 / 导出，可选）</div></div>
+        <div class="row"><div class="lv">P</div><div class="lc"><b>平台层</b> — <code>platform/</code>：图形上下文、外部纹理导入（OES / NV12 / PixelBuffer）、Present、文件路径、日志。只实现纯虚接口，不含业务逻辑</div></div>
+        <div class="row"><div class="lv">D</div><div class="lc"><b>数据层</b> — <code>schema/</code>：素材 JSON Schema、参数定义、代码生成器、版本迁移器；构建期产物供 A / C / F 层共用</div></div>
+      </div>
+      <p class="muted">依赖方向：宿主 → A → C → G / F → P（P 只实现 C、G 定义的接口），D 层在构建期横向生成代码。禁止能力层反向依赖 API 层；禁止 Shader 与 Pass 直接读写状态存储，只能通过参数表。</p>
+
+      <h3 id="p3-2">3.2 目录布局</h3>
+      <span class="code-title">建议目录布局</span>
+<pre><code>include/fx/            <span class="cm">// 唯一对外头文件（稳定 ABI）：engine.h, frame.h, platform.h</span>
+src/
+  core/               <span class="cm">// Engine, Scheduler, IStateStore, FrameContext, Asset, Timeline</span>
+  render/             <span class="cm">// IGraphicsDevice, RenderGraph, Pools, Pass 基类, NormalizePass</span>
+  effects/            <span class="cm">// 内置效果：lut / blur / blend / sticker / beauty</span>
+  ai/                 <span class="cm">// IDetector, DetectorHub, 有界队列, 结果快照</span>
+  media/              <span class="cm">// 可选：解码器、导出器</span>
+  platform/{gl,metal,vulkan,d3d,android,ios,desktop}/
+schema/
+  asset.schema.json   <span class="cm">// 素材契约（单一事实源）</span>
+  params.yaml         <span class="cm">// Pass 参数定义</span>
+  gen.py              <span class="cm">// 生成 C++ 结构体 / 校验器 / 绑定 / 文档</span>
+shaders/              <span class="cm">// .sc 源码 + 编译产物（多后端）</span>
+assets/               <span class="cm">// 示例素材与测试金样图</span>
+tests/{unit,golden,replay,bench}/
+tools/{trace_viewer,shader_compiler,asset_validator}/
+cmake/ + features.json + CMakePresets.json</code></pre>
+
+      <h3 id="p3-3">3.3 六条设计原则</h3>
+      <div class="hl">
+        <div class="item"><div><b>时间戳是唯一驱动</b>：<code>RenderFrame(t, frame)</code> 是「给定 t 求一帧」的纯语义。禁止 System 读墙钟或累加 dt；相机预览也只是把 pts 作为 t 传入。</div></div>
+        <div class="item"><div><b>效果即数据，Pass 即函数</b>：素材描述执行哪些 Pass 及其参数；Pass 只接收输入纹理 + 参数 + 输出目标，不持有跨帧可变状态。</div></div>
+        <div class="item"><div><b>渲染图先编译再执行</b>：拓扑排序、资源别名、依赖校验在素材加载期一次完成；每帧只遍历，热路径不做字符串查找与动态分配。</div></div>
+        <div class="item"><div><b>GPU 句柄全程流转</b>：外部纹理只导入不拷贝；中间结果全是 FrameBuffer 句柄；CPU 回读只在显式 <code>ReadPixels</code> 时发生。</div></div>
+        <div class="item"><div><b>状态单线程写、AI 快照只读</b>：<code>IStateStore</code> 只在渲染线程修改；AI 结果以不可变快照发布，避免到处加锁。</div></div>
+        <div class="item"><div><b>任何能力都可缺席</b>：脚本、AI、3D、导出都是可选特性；缺位时编译通过，素材加载给出明确降级提示，而不是崩溃。</div></div>
+      </div>
+    </section>
+
+    <!-- ============ 04 ============ -->
+    <section id="p4">
+      <div class="sec-head"><div class="sec-no">04</div><h2>技术选型</h2><div class="sub">Stack &amp; Decisions</div></div>
+      <div class="sec-intro"><b>本章结构：</b>4.1 一张总表回答「每层用什么」；4.2、4.3 单独论证两项争议最大的决策——<strong>要不要 ECS 底座</strong>、<strong>摄像头预览要补哪些选型</strong>，并各附一段<strong>伪代码</strong>把结论写成可落地的判定逻辑（写法与 05 章一致）。</div>
+
+      <h3 id="p4-1">4.1 选型总表</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>层次</th><th>推荐选型</th><th>理由</th><th>备选 / 何时替换</th></tr>
+        <tr><td>语言 / 标准</td><td>C++20（最低 C++17）</td><td>concepts / span 便于写清晰接口；移动端工具链已普遍支持</td><td>受限于老 NDK 时降到 C++17</td></tr>
+        <tr><td>构建</td><td>CMake 3.25 + Presets + vcpkg / Conan</td><td>跨平台与特性矩阵 CI 的事实标准</td><td>Bazel（大团队 / 单仓）</td></tr>
+        <tr><td>RHI</td><td><strong>bgfx</strong>（GL ES / Metal / Vulkan / D3D），外包 <code>IGraphicsDevice</code></td><td>一套 API 覆盖全部目标；自带 shaderc 与 transient FBO；无显卡可用 SwiftShader 跑 CI</td><td>已有自研 RHI / DiligentEngine / wgpu-native</td></tr>
+        <tr><td>Shader</td><td>bgfx <code>.sc</code> + <code>shaderc</code></td><td>一份源码编译到 GLSL / HLSL / MSL / SPIR-V；构建期发现后端语法问题</td><td>glslang + SPIRV-Cross（自研 RHI 时）</td></tr>
+        <tr><td>调度</td><td>自研 <code>Scheduler</code>（Phase + order + 依赖拓扑）</td><td>确定性、依赖可校验、可按场景与特性裁剪；成熟引擎通常也把调度权收归自己，不用 ECS 框架自带的调度器</td><td>—</td></tr>
+        <tr><td>运行时状态</td><td><code>IStateStore</code> 接口；M0~M2 用 <strong>FlatStateStore</strong>（扁平参数表）</td><td>显式 RenderGraph 下查询需求很少，扁平结构最简单、最易调试（详见 4.2）</td><td>出现升级信号后换 <strong>EnTT</strong>（header-only）；flecs 亦可</td></tr>
+        <tr><td>素材</td><td>JSON + JSON Schema；可选 CBOR 二进制缓存</td><td>可读、可 diff、可被外部工具生成；Schema 提供加载期校验</td><td>FlatBuffers（素材极大时）</td></tr>
+        <tr><td>反射 / 绑定</td><td><strong>schema-first 代码生成</strong>（Python 读 <code>params.yaml</code>）</td><td>比 C++ 宏反射可控，一次产出结构体、校验器、脚本绑定、文档</td><td>RTTR / reflect-cpp（不想写生成器时）</td></tr>
+        <tr><td>脚本</td><td>M2 起用 <strong>QuickJS</strong></td><td>数百 KB、易嵌入，足够跑参数逻辑与事件回调</td><td>V8（需完整调试器时）/ Lua</td></tr>
+        <tr><td>AI 推理</td><td><code>IDetector</code> + ONNX Runtime Mobile / ncnn</td><td>模型外置、可替换、移动端成熟；GPU 路径可后补</td><td>MNN / CoreML / NNAPI / 厂商推理后端</td></tr>
+        <tr><td>相机接入</td><td>宿主采集 + <code>ImportExternalTexture</code> + <code>NormalizePass</code></td><td>引擎不碰相机会话；外部纹理差异在第 0 节点一次吸收（详见 4.3）</td><td>—</td></tr>
+        <tr><td>数学 / 图片</td><td>GLM + stb_image / libpng</td><td>轻量、无平台耦合</td><td>Eigen / 自研最小矩阵库</td></tr>
+        <tr><td>媒体（L4）</td><td>FFmpeg 软解 + 平台硬解接口</td><td>先保证功能闭环，硬解按机型逐步接入</td><td>MediaCodec / VideoToolbox 直连</td></tr>
+        <tr><td>日志 / Trace</td><td>spdlog + 自研 Chrome Trace 输出</td><td>帧级火焰图是排查掉帧最有效的工具</td><td>perfetto</td></tr>
+        <tr><td>测试</td><td>Catch2 + 金样图 + SwiftShader CI</td><td>无 GPU 环境也能做像素回归</td><td>GoogleTest</td></tr>
+      </table></div>
+      <div class="note"><b>为什么 RHI 不从零写：</b>自研 Vulkan / Metal / GL 三套后端至少消耗 2~3 人月，且期间产不出任何可见效果。用 bgfx 把「跨平台一致性」变成已解决的问题，团队才能把精力放在渲染图、素材与调度上。<strong>但必须包一层 <code>IGraphicsDevice</code></strong>，保留未来替换能力。</div>
+
+      <h3 id="p4-2">4.2 决策一：要不要引入 ECS 底座</h3>
+      <p>先区分两个问题：<strong>「ECS 范式」有没有必要</strong>，和<strong>「某个具体 ECS 库」有没有必要</strong>。结论分三层，先看成熟引擎里可以观察到的现象。</p>
+
+      <h4>① 事实：这类引擎实际用到了 ECS 的哪些能力</h4>
+      <div class="tbl-wrap"><table>
+        <tr><th>ECS 库通常提供</th><th>使用情况</th><th>可观察现象</th></tr>
+        <tr><td>实体 / 组件存储</td><td><strong>重度</strong>：素材按类型名反射成上百种组件并挂到实体</td><td>素材是数据驱动的，组件类型随业务持续增长</td></tr>
+        <tr><td>按组件组合查询</td><td><strong>极重度</strong>：组合查询在处理单元中出现百处以上，单个 AI 处理单元即数十处</td><td>各处理单元普遍依赖「按条件筛出一批实体再批量处理」</td></tr>
+        <tr><td>事件总线</td><td>使用：发布 / 订阅贯穿处理单元、脚本与平台层</td><td>跨模块靠事件解耦，而不是互相直接调用</td></tr>
+        <tr><td>处理单元的调度管理</td><td><strong>完全弃用</strong>：不使用框架自带的调度器</td><td>引擎自己维护若干条执行队列，手写注册与逐帧更新，注册顺序即优先级</td></tr>
+        <tr><td>处理单元基类</td><td>被大幅改造：加入启用开关、重置、名称、耗时统计等字段</td><td>框架提供的基类已被改造成接近自有类型</td></tr>
+      </table></div>
+      <p>也就是说，真正被依赖的是 ECS 的<strong>「动态组件容器 + 组合查询 + 事件总线」</strong>，框架最核心的调度反而被整套替换。以上只归纳架构层面的现象，不涉及任何具体实现。</p>
+
+      <h4>② 三层结论</h4>
+      <div class="grid g3">
+        <div class="card"><span class="tag t-teal">对成熟引擎</span><h4>ECS 范式：有必要</h4><p>上百种组件任意组合（继承树会爆炸）、百处以上「按组合批量处理」、脚本按字符串读写任意组件、运行时增删子树——这四点都是 ECS 的天然能力，不是过度设计。</p></div>
+        <div class="card"><span class="tag t-blue">对成熟引擎</span><h4>具体某个 ECS 库：不必要</h4><p>这类库主要提供稀疏集存储与事件总线，业界同类实现（EnTT、flecs）或自研 sparse set 都能承担。成熟引擎弃用其调度器、改造其基类，本身就说明它只是可替换的数据层。</p></div>
+        <div class="card"><span class="tag t-violet">对自研 MVP</span><h4>ECS 范式：暂不需要</h4><p>本方案用<strong>显式 RenderGraph + 固定参数表</strong>。传统 ECS 里「找所有带 X 组件的实体」，在这里变成「Graph 第 N 个 Pass 显式读 <code>@ai.face</code>」——查询需求被数据结构的显式化消解了。</p></div>
+      </div>
+      <div class="note warn" style="margin-top:16px"><b>代价要说清：</b>此时引入 ECS 只剩成本（间接层、类型擦除、调试困难、学习成本）。但如果后期要做可视化编辑器、组件热插拔、脚本按名访问、嵌套子素材，再迁移也有成本。所以决策不是「永不引入」，而是<strong>延迟决策 + 留好隔离边界</strong>：所有状态读写只经过 <code>IStateStore</code>（接口见 5.3）。</div>
+
+      <h4>③ 判据：什么时候才真的需要 ECS</h4>
+      <div class="tbl-wrap"><table>
+        <tr><th>判据</th><th>回答「是」意味着</th></tr>
+        <tr><td>运行时需按名字 / 类型动态增删组件？</td><td>需要组件注册表</td></tr>
+        <tr><td>状态类型 &gt; 30 且持续增长？</td><td>ECS 的组织收益开始明显</td></tr>
+        <tr><td>脚本需要直接读写任意状态？</td><td>需要反射 / 绑定生成层</td></tr>
+        <tr><td>存在「按组合筛选实体并批量处理」？</td><td>需要查询引擎（成熟引擎正是此项）</td></tr>
+      </table></div>
+      <div class="flow">
+        <div class="step"><b>0~1 个「是」</b>扁平状态结构<small>FlatStateStore（M0~M2 默认）</small></div>
+        <div class="step"><b>2~3 个「是」</b>轻量 ECS + 自研调度<small>EnTTStateStore，不用框架自带调度</small></div>
+        <div class="step"><b>4 个「是」</b>完整 ECS + 代码生成<small>组件 Schema → 反射 / 绑定 / 文档</small></div>
+      </div>
+      <p>表格和卡片用于快速判断；把上面三档、升级信号和隔离边界合起来，落到代码里就是下面这段判定逻辑（伪代码写法与 05 章一致）：</p>
+      <span class="code-title">ECS 引入决策 · 伪代码</span>
+<pre><code><span class="k">函数</span> <span class="t">选择状态模型</span>(诉求):              <span class="cm">// 架构评审时调用一次</span>
+  命中 = 0
+  <span class="k">若</span> 需运行时按名字动态增删状态:    命中 += 1
+  <span class="k">若</span> 状态类型超过 30 且仍在增长:    命中 += 1
+  <span class="k">若</span> 脚本要直接读写任意状态:        命中 += 1
+  <span class="k">若</span> 存在「按组合筛选并批量处理」:  命中 += 1
+
+  <span class="k">若</span> 命中 不超过 1: <span class="k">返回</span> 扁平状态表            <span class="cm">// M0~M2 默认</span>
+  <span class="k">若</span> 命中 不超过 3: <span class="k">返回</span> 轻量 ECS + 自研调度   <span class="cm">// 不用框架自带调度器</span>
+  <span class="k">否则</span>:            <span class="k">返回</span> 完整 ECS + 绑定生成
+
+<span class="k">函数</span> <span class="t">是否重新评估</span>(运行期信号):        <span class="cm">// 每次迭代复查</span>
+  信号 = [状态类型超过 30, 脚本按名访问, 组件热插拔, 嵌套素材 / 多实例查询]
+  <span class="k">返回</span> 为真的信号数 不少于 2
+
+<span class="cm">// 关键隔离：调用方永远只写这一行</span>
+状态存储.写入(参数键, 值)
+<span class="cm">// 底层从「数组」换成「实体注册表」时，调度器与渲染图一行不改</span></code></pre>
+      <div class="note"><b>读法：</b>第一个函数决定<strong>当前用哪一档</strong>，第二个函数决定<strong>什么时候重新评估</strong>；最后两行说明为什么这个决策可以推迟——状态访问被收在 <code>IStateStore</code> 后面。接口定义见 5.3。</div>
+      <p><strong>升级触发信号</strong>就是上面「运行期信号」那四项的文字版：状态类型超过 30、脚本需要按名访问状态、素材需要运行时组件热插拔、出现嵌套子素材或多实例批量查询。届时只替换 <code>IStateStore</code> 的实现，<code>Scheduler</code> 与 RenderGraph 不动。</p>
+
+      <h3 id="p4-3">4.3 决策二：摄像头预览要补哪些选型</h3>
+      <p>预览是 <strong>push 模型</strong>（相机推帧），存在外部纹理格式差异、方向与生命周期约束，而且通常是第一个真实场景。它必须在 <strong>L0 / M0 就跑通</strong>，否则 RHI 抽象与帧接口会被迫返工。</p>
+
+      <h4>业界常见的做法（可参照）</h4>
+      <ul>
+        <li>对外只留<strong>一个相机纹理入口</strong>，把纹理句柄、宽高、设备朝向、图像原点一起传入；传感器朝向与渲染尺寸另有独立配置，旋转用 0 / 90 / 180 / 270 四档枚举表示。</li>
+        <li>相机朝向、传感器朝向、纹理原点、渲染尺寸<strong>分开配置</strong>，不塞进每个 Shader；由输入预处理环节做旋转 / 裁剪归一，产出一张规格统一的中间纹理。</li>
+        <li>平台侧先把各形态的相机纹理（外部纹理、YUV、像素缓冲等）统一成普通 2D 纹理，再交给内核，因此<strong>内核只面对一种纹理形态</strong>。</li>
+      </ul>
+
+      <h4>本方案选型</h4>
+      <div class="tbl-wrap"><table>
+        <tr><th>子问题</th><th>选型</th><th>理由</th></tr>
+        <tr><td>相机采集</td><td>宿主负责（CameraX / Camera2 / AVFoundation），引擎只接纹理</td><td>权限、会话、前后置、对焦、曝光不属于渲染内核；桌面可用测试图替代</td></tr>
+        <tr><td>外部纹理</td><td>平台层的「外部纹理导入」+ Graph 第 0 节点 <code>NormalizePass</code></td><td>屏蔽 OES / NV12 / CVPixelBuffer / RGBA 差异，一次转换后全链路只认 RGBA8</td></tr>
+        <tr><td>方向 / 镜像</td><td><code>FrameDesc.transform</code> + <code>mirrored</code>，在 NormalizePass 统一处理</td><td>一处修正，避免每个效果 Pass 各写一遍旋转逻辑</td></tr>
+        <tr><td>时间戳</td><td><strong>相机帧 pts 直接作为 <code>RenderFrame</code> 的 t</strong></td><td>预览与后编辑共用一个入口；不引入第二个时间源，保证确定性与可回放</td></tr>
+        <tr><td>线程</td><td>宿主在自己的 GL / 渲染线程调用；引擎不自建渲染线程</td><td>上下文所有权清晰，避免跨线程创建 GL 资源导致花屏</td></tr>
+        <tr><td>掉帧</td><td>输入侧只保留最新一帧（深度 1），旧帧直接丢弃</td><td>预览宁可丢帧，不可堆积延迟；与 AI 队列深度 2 的错帧策略互补</td></tr>
+        <tr><td>分辨率</td><td>处理分辨率与显示分辨率解耦（如 720p 处理 → 1080p 上屏）</td><td>稳住 GPU 预算，也为 8.3 的分辨率降级留出口</td></tr>
+        <tr><td>输出</td><td>结果纹理回传，或宿主 <code>IRenderTarget</code> 直接 Present</td><td>兼容 SurfaceView / TextureView / CAMetalLayer / 桌面窗口</td></tr>
+        <tr><td>生命周期</td><td>显式 <code>OnPause / OnResume</code>（配合 <code>AttachSurface / DetachSurface</code>）</td><td>退后台释放 GL 资源、停 AI 任务、清纹理缓存；回前台重建</td></tr>
+        <tr><td>性能预算</td><td>30fps → 33ms / 帧，GPU ≤ 16ms，AI 异步错帧</td><td>与第 06、08 章的调度与降级策略联动</td></tr>
+      </table></div>
+
+      <h4>选型结论落到代码里 · 伪代码</h4>
+      <p>表格回答「选什么」，下面这段回答「实现时怎么摆」：只表达<strong>配置与判定</strong>，完整的逐帧调用示例见 6.3，接口字段见 5.1。</p>
+      <span class="code-title">相机预览接入 · 伪代码</span>
+<pre><code><span class="k">配置</span> <span class="t">预览</span>:
+  采集          宿主负责          <span class="cm">// 引擎不碰权限 / 会话 / 对焦</span>
+  时间源        相机 pts          <span class="cm">// 直接作为 RenderFrame 的 t，不设第二个时间源</span>
+  输入队列      深度 1，丢旧帧
+  AI 队列       深度 2，允许错帧
+  处理分辨率    720p              <span class="cm">// 与显示分辨率解耦，稳住 GPU 预算</span>
+  显示分辨率    宿主窗口尺寸
+  线程          宿主渲染线程       <span class="cm">// 引擎不自建渲染线程</span>
+  图首节点      NormalizePass     <span class="cm">// 统一成标准朝向的 RGBA8</span>
+
+<span class="k">函数</span> <span class="t">是否归一化</span>(帧):
+  <span class="k">若</span> 帧.纹理类型 == 普通2D 且 无需旋转 / 镜像 / 裁剪:
+    <span class="k">返回</span> 否                       <span class="cm">// 已是标准输入，直通省一次绘制</span>
+  <span class="k">否则</span>:
+    <span class="k">返回</span> 是                       <span class="cm">// 外部纹理 / YUV / 像素缓冲 → RGBA8</span>
+
+<span class="k">函数</span> <span class="t">接收相机帧</span>(帧):
+  <span class="k">若</span> 输入队列已有更新帧: 丢弃本帧  <span class="cm">// 宁可掉帧，不可堆积延迟</span>
+  engine.RenderFrame(t = 帧.pts, 帧) <span class="cm">// 与后编辑共用唯一入口</span>
+
+<span class="k">当</span> 退后台: OnPause() → DetachSurface()
+<span class="k">当</span> 回前台: AttachSurface() → OnResume()</code></pre>
+      <div class="note"><b>一眼看懂的三点：</b>① 引擎里没有「预览专用分支」，平台差异全由 <code>NormalizePass</code> 和两项配置吸收；② t 只有一个来源，所以预览录制下来的调用序列可以离线回放；③ 输入队列深度 1 表示<strong>不堆积延迟</strong>，AI 队列深度 2 表示<strong>允许错帧</strong>，两者作用不同，并不矛盾。</div>
+
+      <h4>明确不做</h4>
+      <div class="chips">
+        <span>相机权限与会话管理</span><span>对焦 / 曝光 / 闪光灯</span><span>相机 App 的 UI</span>
+        <span>在效果 Shader 里写 OES 分支</span><span>引擎自建渲染线程</span><span>相机帧的 CPU 拷贝</span>
+      </div>
+      <p class="muted" style="margin-top:12px">接口落地见 5.1（<code>FrameDesc</code>）、5.7（<code>ImportExternalTexture</code>）；运行时链路见 6.3。</p>
+    </section>
+
+    <!-- ============ 05 ============ -->
+    <section id="p5">
+      <div class="sec-head"><div class="sec-no">05</div><h2>核心接口契约</h2><div class="sub">Contracts</div></div>
+      <div class="sec-intro"><b>阅读顺序：</b>由外到内——宿主看到的 <code>Engine</code>（5.1）→ 引擎内部的调度（5.2）与状态（5.3）→ 素材这份「程序」（5.4）→ 执行它的 RenderGraph（5.5）→ 两类可插拔扩展：AI（5.6）与平台（5.7）。这 7 组契约定稳后，其余模块可并行开发、独立替换。<strong>文中出现的目录与接口名都是本方案的设计约定，不指向任何既有工程的代码</strong>。下方片段统一用<strong>伪代码</strong>书写：<code>数据 X:</code> 描述字段、<code>接口 Y:</code> 描述行为、<code>→</code> 表示返回、<code>|</code> 表示「或」、<code>?</code> 表示可选；不绑定具体语言，省略错误处理。</div>
+
+      <h3 id="p5-1">5.1 Engine 与 FrameDesc：只有一个帧入口</h3>
+      <span class="code-title">帧输入描述 · 伪代码</span>
+<pre><code><span class="k">数据</span> <span class="t">FrameDesc</span>:
+  <span class="cm">// —— 基础字段：所有场景都要给 ——</span>
+  input            宿主纹理句柄     <span class="cm">// 所有权归宿主，引擎只引用</span>
+  width / height   整数
+  format           像素格式
+  origin           图像原点         <span class="cm">// 左上 / 左下</span>
+  hostFrameIndex   整数             <span class="cm">// 仅用于 trace 与 fence 关联</span>
+
+  <span class="cm">// —— 相机可选字段：不填时就是图片 / 视频路径 ——</span>
+  kind             纹理类型 = 普通2D <span class="cm">// 普通2D / 外部纹理 / YUV / 像素缓冲</span>
+  transform        3x3 矩阵 = 单位阵 <span class="cm">// 传感器方向 + 裁剪</span>
+  mirrored         布尔     = false  <span class="cm">// 前置摄像头</span>
+
+  <span class="cm">// 刻意没有时间字段：时间只来自 RenderFrame 的参数 t</span></code></pre>
+
+      <span class="code-title">引擎对外契约 · 伪代码（→ 表示返回，| 表示「或」）</span>
+<pre><code><span class="k">数据</span> <span class="t">EngineConfig</span>:
+  features          特性集合         <span class="cm">// 由构建期配置生成</span>
+  maxFrameBuffers   整数 = 8
+  aiQueueDepth      整数 = 2         <span class="cm">// 允许错一帧</span>
+  resourceRoot      路径
+
+<span class="k">接口</span> <span class="t">Engine</span>:
+  Create(config, platform)          → Engine
+
+  <span class="cm">// 输出目标与生命周期（预览退后台 / 回前台时调用）</span>
+  AttachSurface(渲染目标)
+  DetachSurface()
+  OnPause()                         <span class="cm">// 停 AI 任务、释放临时资源</span>
+  OnResume()                        <span class="cm">// 重建 GPU 资源</span>
+
+  <span class="cm">// 素材是纯数据；加载期完成校验、版本迁移、Graph 编译</span>
+  LoadAsset(字节序列)               → 素材句柄 | 错误
+  LoadAssetFile(路径)               → 素材句柄 | 错误
+  UnloadAsset(素材句柄)
+
+  <span class="cm">// 唯一帧入口：给定 t 与输入，产出并上屏；预览时 t 就是相机 pts</span>
+  RenderFrame(t, frame)             → 成功 | 失败
+
+  ResultTexture()                   → 纹理句柄      <span class="cm">// 或由渲染目标直接上屏</span>
+  ReadPixels()                      → 字节序列 | 错误 <span class="cm">// 显式回读，仅测试 / 导出</span>
+  SetParam(passId, key, 值)
+  Release()                                      <span class="cm">// 幂等，撤销所有异步任务</span></code></pre>
+      <div class="note blue"><b>刻意的三点设计：</b>① 没有 <code>Update(dt)</code>，只有 <code>RenderFrame(t)</code>，从 API 层面堵死非确定性时间；② 相机字段全部有默认值，图片 / 视频路径零改动，且不另设 <code>capturePts</code>，避免「t 与 pts 谁说了算」；③ 不向宿主暴露任何内部对象（实体、组件、状态存储），内部实现可替换而不破坏 ABI。</div>
+
+      <h3 id="p5-2">5.2 Scheduler：显式依赖 + 拓扑排序</h3>
+      <p>这是相对常见实现最重要的一处改进。每个 System 声明<strong>在哪个阶段、依赖谁、什么条件下运行</strong>；引擎初始化时做拓扑排序与环检测，运行期只遍历编译好的线性序列。</p>
+      <span class="code-title">调度契约 · 伪代码</span>
+<pre><code><span class="k">枚举</span> <span class="t">Phase</span> = { Prepare, Simulate, Detect, Render, Present }
+<span class="k">枚举</span> <span class="t">Scene</span> = { 相机, 后编辑, 全部 }
+
+<span class="k">数据</span> <span class="t">FrameContext</span>:              <span class="cm">// 每帧构造一次，供所有处理单元读取</span>
+  t            绝对时间             <span class="cm">// 预览时即相机 pts</span>
+  input        帧描述
+  state        状态存储             <span class="cm">// 仅渲染线程可写；见 5.3</span>
+  gfx          图形设备
+  pool         帧缓冲池
+  detectors    探测器中心           <span class="cm">// 只读快照</span>
+  asset        素材运行时           <span class="cm">// 已编译 Graph + 参数布局</span>
+  trace        追踪作用域
+
+<span class="k">数据</span> <span class="t">SystemDesc</span>:                <span class="cm">// 注册时提交，之后不再改</span>
+  name         名称
+  phase        阶段
+  order        整数                 <span class="cm">// 同阶段内的显式优先级</span>
+  after        名称列表             <span class="cm">// 显式依赖；构建期做环检测</span>
+  scenes       场景     = 全部
+  feature      特性位   = 总是启用  <span class="cm">// 编译期裁剪</span>
+  enabled      判定函数              <span class="cm">// 运行期：无事可做则跳过</span>
+  update       执行函数(ctx)         <span class="cm">// 该处理单元的具体逻辑</span>
+
+<span class="k">接口</span> <span class="t">Scheduler</span>:
+  Register(描述)
+  Compile()                       <span class="cm">// 拓扑排序 + 环检测 + 特性过滤；失败直接报错</span>
+  Run(阶段, ctx)                  <span class="cm">// 遍历已编译的线性序列，逐项打点</span></code></pre>
+      <p>内置 System 保持极少，按阶段排列如下。<strong>不要把每个特效做成一个 System</strong>——特效是数据，由 <code>GraphExecute</code> 统一驱动，调度复杂度因此大幅下降。</p>
+      <div class="tbl-wrap"><table>
+        <tr><th>System</th><th>Phase</th><th>职责</th></tr>
+        <tr><td><code>InputImport</code></td><td>Prepare</td><td>调用 <code>ImportExternalTexture</code> 零拷贝导入；执行 Graph 第 0 节点 <code>NormalizePass</code></td></tr>
+        <tr><td><code>AssetSync</code></td><td>Prepare</td><td>把宿主 <code>SetParam</code> 的待办写入 <code>IStateStore</code></td></tr>
+        <tr><td><code>Timeline</code></td><td>Simulate</td><td>按 t 求值参数轨道（通过状态存储接口）</td></tr>
+        <tr><td><code>DetectorSubmit</code></td><td>Detect</td><td>把归一化后的纹理投给 <code>DetectorHub</code>，非阻塞</td></tr>
+        <tr><td><code>GraphExecute</code></td><td>Render</td><td>按编译序执行其余 Pass</td></tr>
+        <tr><td><code>Present</code></td><td>Present</td><td>上屏 / 导出分流，记录帧统计</td></tr>
+      </table></div>
+
+      <h3 id="p5-3">5.3 IStateStore：把「要不要 ECS」藏在接口后面</h3>
+      <p>所有运行时状态（参数值、轨道求值结果、锚点等）只通过此接口读写。这是 4.2「延迟决策」能成立的前提。</p>
+      <span class="code-title">状态存储契约 · 伪代码</span>
+<pre><code><span class="k">接口</span> <span class="t">IStateStore</span>:
+  SetParam(参数键, 值)
+  GetParam(参数键)      → 值
+  ApplyTimeline(t)                  <span class="cm">// 按绝对时间求值参数轨道</span>
+  FindByTag(标签)       → 状态引用    <span class="cm">// 预留给未来的 ECS 查询</span>
+
+<span class="cm">// M0~M2：扁平实现 —— 加载期定好布局的数组，参数键是整数下标</span>
+<span class="cm">// M3+  ：如出现升级信号，底层换成实体注册表，接口不变</span>
+<span class="cm">// 上层只持有「状态存储」这一抽象；换实现时调度器与渲染图都不用改</span></code></pre>
+      <div class="note"><b>为什么参数键用整数：</b>素材加载时把 <code>"beauty.strength"</code> 这类字符串一次性解析为索引，运行期只做数组访问。这兑现了 3.3「热路径不做字符串查找」的原则，也是扁平实现足够快的原因。</div>
+
+      <h3 id="p5-4">5.4 素材 Schema：显式、可校验、可迁移</h3>
+      <p>素材是引擎的「程序」，由 5 个区块组成：<code>schemaVersion</code>（版本）、<code>requires</code>（能力声明）、<code>resources</code>（资源）、<code>renderGraph</code>（Pass 图）、<code>timeline</code>（参数轨道）。</p>
+      <span class="code-title">素材结构示例 · 示意数据（注释仅用于讲解）</span>
+<pre><code>{
+  <span class="s">"schemaVersion"</span>: 1,
+  <span class="s">"id"</span>: <span class="s">"demo_soft_skin"</span>,
+  <span class="s">"scene"</span>: <span class="s">"camera"</span>,
+  <span class="s">"requires"</span>: [<span class="s">"shader.soft_skin"</span>, <span class="s">"shader.lut"</span>],   <span class="cm">// 可缺席能力 → 加载期降级</span>
+  <span class="s">"resources"</span>: {
+    <span class="s">"toneLut"</span>: <span class="s">"res/lut_warm.png"</span>,
+    <span class="s">"hat"</span>:     <span class="s">"res/hat.png"</span>
+  },
+  <span class="s">"renderGraph"</span>: [
+    { <span class="s">"id"</span>:<span class="s">"input"</span>,  <span class="s">"type"</span>:<span class="s">"Input"</span>,  <span class="s">"out"</span>:<span class="s">"rt0"</span> },      <span class="cm">// 编译期展开为 Import + NormalizePass</span>
+    { <span class="s">"id"</span>:<span class="s">"beauty"</span>, <span class="s">"type"</span>:<span class="s">"Effect"</span>, <span class="s">"shader"</span>:<span class="s">"beauty/soft_skin"</span>,
+      <span class="s">"in"</span>:<span class="s">"rt0"</span>, <span class="s">"out"</span>:<span class="s">"rt1"</span>, <span class="s">"params"</span>:{ <span class="s">"strength"</span>:0.6, <span class="s">"radius"</span>:2.0 } },
+    { <span class="s">"id"</span>:<span class="s">"tone"</span>,   <span class="s">"type"</span>:<span class="s">"LUT"</span>,    <span class="s">"lut"</span>:<span class="s">"@resources.toneLut"</span>,
+      <span class="s">"in"</span>:<span class="s">"rt1"</span>, <span class="s">"out"</span>:<span class="s">"rt2"</span>, <span class="s">"params"</span>:{ <span class="s">"intensity"</span>:0.8 } },
+    { <span class="s">"id"</span>:<span class="s">"sticker"</span>,<span class="s">"type"</span>:<span class="s">"Blend"</span>,  <span class="s">"texture"</span>:<span class="s">"@resources.hat"</span>,
+      <span class="s">"in"</span>:<span class="s">"rt2"</span>, <span class="s">"out"</span>:<span class="s">"rt3"</span>, <span class="s">"anchor"</span>:<span class="s">"@ai.face.points[0]"</span> },
+    { <span class="s">"id"</span>:<span class="s">"out"</span>,    <span class="s">"type"</span>:<span class="s">"Output"</span>, <span class="s">"in"</span>:<span class="s">"rt3"</span> }
+  ],
+  <span class="s">"timeline"</span>: [
+    { <span class="s">"pass"</span>:<span class="s">"beauty"</span>, <span class="s">"param"</span>:<span class="s">"strength"</span>,
+      <span class="s">"keys"</span>:[{<span class="s">"t"</span>:0,<span class="s">"v"</span>:0.0},{<span class="s">"t"</span>:500000,<span class="s">"v"</span>:0.8}], <span class="s">"easing"</span>:<span class="s">"easeInOut"</span> }
+  ]
+}</code></pre>
+      <ul>
+        <li><strong>加载期做完所有昂贵工作</strong>：Schema 校验 → 版本迁移 → 资源存在性 → 能力声明比对 → Graph 编译（5.5）→ 参数键解析为整数索引（5.3）。运行期不做字符串解析。</li>
+        <li><strong>能力声明即降级依据</strong>：<code>requires</code> 中缺失的能力（模型没打进包、Shader 被裁剪）在加载期就决定「跳过该 Pass 或替换为 no-op」，并上报一次，而不是每帧判断。</li>
+        <li><strong>版本迁移器</strong>：<code>MigrateV0toV1(json)</code> 这类纯函数逐级升级，禁止在解析代码里散落兼容分支。</li>
+        <li><strong>锚点引用</strong>：<code>@ai.face.points[0]</code> 在编译期解析成「对某探测器结果的订阅」，缺结果时取 last-good 或默认位姿。</li>
+      </ul>
+
+      <h3 id="p5-5">5.5 RenderGraph：先编译，后执行</h3>
+      <p>渲染图承担常见实现里「渲染树 + FBO 乒乓 + 渲染器池」三者的职责，但用<strong>显式图 + 编译期资源分析</strong>替代运行期隐式推导。</p>
+      <div class="pipe">
+        <div class="stage"><div class="badge">1</div><div><b>编译（素材加载时一次）</b>：展开 <code>Input</code> 节点（插入 <code>NormalizePass</code> 作为第 0 节点）→ 按 <code>in/out</code> 建边 → 拓扑排序 → 检测环与悬空引用 → 计算每个 RT 的生命周期区间 → 对不重叠的 RT 做<strong>别名复用</strong> → 实例化 Pass 并固定 uniform 布局。</div></div>
+        <div class="stage"><div class="badge">2</div><div><b>执行（每帧）</b>：按拓扑序取输入纹理 → 从池里按「宽、高、格式」取一张输出画布 → 执行该 Pass（图形设备、输入、输出、参数）→ 归还上游引用 → 输出成为下一节点输入。</div></div>
+        <div class="stage"><div class="badge">3</div><div><b>输出</b>：<code>Output</code> 节点决定最终纹理；<code>Present</code> 负责上屏缩放、Y 翻转、alpha 预乘；导出模式跳过 Present，直接把纹理交给编码器。</div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><span class="tag t-teal">NormalizePass</span><h4>Graph 的第 0 节点</h4><p>输入外部纹理（OES / NV12 / PixelBuffer / RGBA），按 <code>transform</code> 与 <code>mirrored</code> 做旋转、镜像、裁剪，缩放到处理分辨率，输出标准 RGBA8。<strong>此后所有 Pass 与 AI 都不感知平台差异。</strong>输入已是标准 RGBA 且无变换时退化为直通。</p></div>
+        <div class="card"><span class="tag t-blue">RT 别名</span><h4>为什么必须做</h4><p>5 个 Pass 的朴素实现需要 5 张全尺寸 FBO（1080p RGBA 约 40MB）；做生命周期分析后通常只需 2~3 张。这是移动端显存峰值最关键的优化，且<strong>必须在编译期算好</strong>，运行期只做池分配。</p></div>
+      </div>
+
+      <h3 id="p5-6">5.6 IDetector：模型是插件，结果是不可变快照</h3>
+      <span class="code-title">探测器契约 · 伪代码</span>
+<pre><code><span class="k">数据</span> <span class="t">DetectSpec</span>:                <span class="cm">// 每个探测器自己声明</span>
+  shortEdge    整数 = 320        <span class="cm">// 检测分辨率（224 / 320 / 640）</span>
+  format       像素格式
+  backend      推理后端           <span class="cm">// CPU / GPU / 系统 NPU</span>
+  queueDepth   整数 = 2
+  dependsOn    名称列表           <span class="cm">// 如「头部分割」依赖「人脸框」</span>
+
+<span class="k">数据</span> <span class="t">DetectInput</span>:
+  gpuTex       纹理句柄           <span class="cm">// 归一化后的纹理，零拷贝，配 Fence 使用</span>
+  cpuImage     字节序列?          <span class="cm">// 仅 CPU 后端回读（? 表示可选）</span>
+  frameTime    绝对时间
+
+<span class="k">数据</span> <span class="t">DetectResult</span>:               <span class="cm">// 不可变，发布后只读</span>
+  frameTime    绝对时间
+  points       关键点列表
+  mask         纹理句柄
+  confidence   浮点数
+
+<span class="k">接口</span> <span class="t">IDetector</span>:
+  Spec()          → DetectSpec
+  Init(模型包)    → 成功 | 失败
+  Run(输入)       → 结果        <span class="cm">// 在 worker 线程执行，不写状态存储</span></code></pre>
+      <p><code>DetectorHub</code> 负责：按 <code>dependsOn</code> 排序、复用同尺寸缩放结果、投递到有界队列（默认深度 2）、超限时<strong>丢最旧帧</strong>、发布不可变快照、维护 last-good 结果。渲染侧只读「最新快照」或「按时间戳取快照」，<strong>永不等待</strong>。</p>
+
+      <h3 id="p5-7">5.7 IPlatform：把平台差异压进最小接口</h3>
+      <span class="code-title">平台抽象 · 伪代码</span>
+<pre><code><span class="k">数据</span> <span class="t">ImportedTexture</span>:           <span class="cm">// 仅本帧有效，不接管宿主纹理所有权</span>
+  tex          纹理句柄          <span class="cm">// YUV 时为两个平面的组合句柄</span>
+  kind         纹理类型
+  transform    3x3 矩阵          <span class="cm">// 来自帧描述，供归一化节点消费</span>
+  mirrored     布尔
+
+<span class="k">接口</span> <span class="t">IPlatform</span>:
+  CreateDevice(设备描述)          → 图形设备
+  ImportExternalTexture(帧描述)  → ImportedTexture
+  CreateRenderTarget(宽, 高)     → 渲染目标
+  ResolvePath(相对路径)          → 绝对路径
+  Now()                         → 时间       <span class="cm">// 仅用于 trace，禁止驱动帧逻辑</span>
+  Log(级别, 文本)</code></pre>
+      <p>平台实现只做四件事：创建图形设备、把宿主纹理句柄包装成引擎纹理、提供 Present 目标、处理路径与日志。Android 侧另提供 JNI 门面，iOS 侧提供 OC 门面，桌面侧提供 GLFW / Qt 目标。<strong>核心层或渲染层里出现平台相关的条件编译，即视为架构违规</strong>，由 CI 静态检查拦截。</p>
+    </section>
+
+    <!-- ============ 06 ============ -->
+    <section id="p6">
+      <div class="sec-head"><div class="sec-no">06</div><h2>一帧的执行</h2><div class="sub">Frame Pipeline</div></div>
+      <div class="sec-intro"><b>本章回答：</b>宿主调用一次 <code>RenderFrame(t, frame)</code> 后，内部依次发生什么（6.1、6.2）；摄像头预览如何套进这条流水线（6.3）；时间语义与线程约束（6.4、6.5）。本章示例与 05 章一样，均为平台无关的伪代码。</div>
+
+      <h3 id="p6-1">6.1 五阶段流水线</h3>
+      <div class="flow vertical">
+        <div class="step"><b>① Prepare（渲染线程）</b>帧缓冲池回收上一帧句柄；<code>InputImport</code> 零拷贝导入外部纹理并执行 <code>NormalizePass</code>；<code>AssetSync</code> 写入宿主参数<small>输入：FrameDesc / t · 输出：标准 RGBA8 纹理 + 待求值参数</small></div>
+        <div class="step"><b>② Simulate（渲染线程）</b><code>Timeline</code> 按绝对时间 t 求值所有参数轨道；更新锚点与事件<small>禁止读墙钟；随机源由 t + assetId 派生</small></div>
+        <div class="step"><b>③ Detect（非阻塞投递）</b><code>DetectorSubmit</code> 把归一化纹理 + Fence 投给 <code>DetectorHub</code>，按依赖分派到 worker；<strong>立即返回，绝不等待</strong><small>渲染消费「最近一次已发布快照」，允许错 0~1 帧</small></div>
+        <div class="step"><b>④ Render（渲染线程）</b><code>GraphExecute</code> 按编译序列逐 Pass 执行，FBO 从池中取还<small>Pass 只读参数表与 AI 快照，不持有跨帧可变状态</small></div>
+        <div class="step"><b>⑤ Present / Output</b>上屏或返回 TextureId；导出模式跳过 Present；记录 trace、帧耗时、队列长度、显存峰值<small>输出：上屏 / 结果纹理 / 显式回读</small></div>
+      </div>
+      <p class="muted">为什么 NormalizePass 放在 Prepare 而不是 Render：Detect 阶段的 AI 也需要标准朝向的 RGBA 输入，提前归一化后两者共享同一张纹理，省一次转换。</p>
+
+      <h3 id="p6-2">6.2 一帧伪代码</h3>
+      <span class="code-title">一帧的执行 · 伪代码（与 05 章同一套写法）</span>
+<pre><code><span class="k">函数</span> <span class="t">RenderFrame</span>(t, frame):
+  <span class="k">若</span> 已暂停 或 无素材: <span class="k">返回</span> 失败
+  开启本帧追踪(t)
+  帧缓冲池.回收上一帧()          <span class="cm">// 归还临时 FBO</span>
+
+  ctx = 构造上下文(t, frame, 状态存储, 图形设备, 帧缓冲池, 探测器中心, 素材运行时, 追踪)
+
+  调度器.执行(Prepare,  ctx)     <span class="cm">// 导入纹理 + 归一化 + 参数同步</span>
+  调度器.执行(Simulate, ctx)     <span class="cm">// 时间轴求值 / 锚点 / 事件</span>
+  调度器.执行(Detect,   ctx)     <span class="cm">// 非阻塞投递；内部做 fence 与丢旧帧</span>
+  调度器.执行(Render,   ctx)     <span class="cm">// 唯一的渲染驱动：按编译序执行 Graph</span>
+  调度器.执行(Present,  ctx)     <span class="cm">// 上屏 / 导出分流</span>
+
+  输出 = 素材.渲染图.最终纹理()
+  记录帧统计(t, 输出, AI 队列长度)
+  <span class="k">返回</span> 输出是否有效</code></pre>
+
+      <h3 id="p6-3">6.3 场景：摄像头预览链路</h3>
+      <p>预览是 push 模型，但通过「pts 即 t」被无损装进上面的纯函数式流水线，引擎内部<strong>没有任何预览专用分支</strong>，只多了 NormalizePass 一个节点。</p>
+      <div class="flow vertical">
+        <div class="step"><b>① 宿主相机回调</b>拿到外部纹理 + 帧 pts + 传感器方向 / transform；只保留最新一帧（深度 1）<small>Android: SurfaceTexture(OES) · iOS: CVPixelBuffer(NV12/BGRA) · 桌面: RGBA8</small></div>
+        <div class="step"><b>② 宿主 GL 线程调用</b><code>RenderFrame(pts, frame)</code>，frame 中填 <code>kind / transform / mirrored</code><small>t 就是相机 pts；预览与后编辑走同一入口</small></div>
+        <div class="step"><b>③ Prepare：导入 + 归一化</b><code>ImportExternalTexture</code> 包装句柄 → <code>NormalizePass</code> 输出标准 RGBA8（处理分辨率）<small>此后 AI 与所有效果 Pass 不感知平台纹理差异</small></div>
+        <div class="step"><b>④ Detect / Render / Present</b>AI 异步消费；效果链执行；上屏或回传结果纹理<small>掉帧时宿主侧直接丢弃旧帧，引擎不排队</small></div>
+      </div>
+      <span class="code-title">宿主相机回调 · 伪代码（平台无关）</span>
+<pre><code><span class="k">当</span> 相机帧到达(纹理, 时间戳 pts, 方向矩阵, 是否前置):
+  <span class="cm">// 只保留最新一帧，旧帧直接丢弃；切到宿主自己的渲染线程</span>
+  frame = {
+    input:       纹理句柄,
+    width/height: 采集分辨率,
+    kind:        外部纹理,      <span class="cm">// 各平台各自的纹理形态</span>
+    transform:   方向矩阵,      <span class="cm">// 纹理变换 + 传感器方向</span>
+    mirrored:    是否前置
+  }
+  engine.RenderFrame(t = pts, frame)   <span class="cm">// pts 即 t，单一时间源</span>
+
+<span class="k">当</span> 应用退后台: engine.OnPause();      engine.DetachSurface()
+<span class="k">当</span> 应用回前台: engine.AttachSurface(); engine.OnResume()</code></pre>
+      <div class="note"><b>单一时间源的价值：</b>若在 <code>FrameDesc</code> 里再放一个 <code>capturePts</code>，就会出现「t 与 pts 谁说了算」的歧义，seek、变速、录制回放都要打补丁。让宿主把 pts 作为 t 传入，预览录制下来的调用序列可以离线逐帧重放（11 章的确定性回放）。</div>
+
+      <h3 id="p6-4">6.4 时间语义与 seek</h3>
+      <div class="grid g2">
+        <div class="card"><h4>纯函数式求帧</h4><p><code>RenderFrame(t)</code> 的输出只依赖 t、素材、输入帧、AI 快照。seek / 倒放 / 变速都只是<strong>换一个 t 映射</strong>：<code>sourceTime = Remap(t, timeEffect)</code>，无需重置引擎。</p></div>
+        <div class="card"><h4>AI 是唯一的非纯部分</h4><p>把结果连同 <code>frameTime</code> 一起归档，回放时按时间戳取对应快照（缺失则 last-good），从而保证<strong>回放仍可复现</strong>。</p></div>
+        <div class="card"><h4>帧预测与预解（L4）</h4><p>后编辑场景由 Decode worker 按 <code>t + 1/fps</code> 预解下一帧，放入深度 1 的队列；命中则省一次解码，未命中直接同步解。</p></div>
+        <div class="card"><h4>暂停 ≠ 停止帧循环</h4><p>后编辑暂停时固定 <code>pausedTime</code> 继续调用 <code>RenderFrame(pausedTime)</code>，画面仍可响应参数热更新。注意区别于 <code>OnPause()</code>：后者是退后台、释放资源。</p></div>
+      </div>
+
+      <h3 id="p6-5">6.5 线程模型与同步</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>线程</th><th>职责</th><th>同步方式</th><th>禁止事项</th></tr>
+        <tr><td>渲染线程（宿主 GL 线程）</td><td>帧驱动、<code>IStateStore</code> 写入、Graph 执行、Present</td><td>无锁（单线程）</td><td>不得等待 AI 结果</td></tr>
+        <tr><td>AI worker × N</td><td>模型推理、前后处理</td><td>有界队列 + GPU Fence（不可用时降级为强制同步等待）+ 不可变快照</td><td>不得写状态存储、不得创建 GL 资源</td></tr>
+        <tr><td>Decode worker（L4）</td><td>视频 / 图片预解码</td><td>深度 1 队列 + 共享上下文</td><td>不得触碰渲染图</td></tr>
+        <tr><td>RHI 线程（可选）</td><td>命令录制与提交</td><td>双缓冲 FrameContext</td><td>MVP 阶段不引入</td></tr>
+      </table></div>
+      <div class="note warn"><b>强约束：</b>GL / Metal 资源只能在持有上下文的线程创建。AI 若需 GPU 推理，应使用<strong>共享上下文 + Fence</strong>，或在 CPU 后端跑小模型；跨线程直接传裸 texture id 而不同步，是这类引擎最常见的花屏来源。</div>
+    </section>
+
+    <!-- ============ 07 ============ -->
+    <section id="p7">
+      <div class="sec-head"><div class="sec-no">07</div><h2>资源与内存管理</h2><div class="sub">Resources</div></div>
+      <h3 id="p7-1">7.1 池化、别名与所有权</h3>
+      <div class="grid g2">
+        <div class="card"><span class="tag t-teal">池化</span><h4>FrameBufferPool</h4><p>按 <code>{width, height, format, msaa}</code> 分桶；<code>Obtain</code> 取句柄、<code>Release</code> 归还；每帧 <code>TickShrink()</code> 释放连续 N 帧未用的桶。设全局上限，超限触发分辨率降级而非继续分配。</p></div>
+        <div class="card"><span class="tag t-teal">池化</span><h4>RendererPool / 纹理缓存</h4><p>Pass 实例与 LUT、贴纸等静态纹理按素材生命周期缓存；素材卸载时整批回收，避免「卸载后显存不降」。</p></div>
+        <div class="card"><span class="tag t-blue">别名</span><h4>Transient RT 复用</h4><p>编译期计算每个 RT 的首次写入 / 末次读取区间，不重叠者复用同一物理 FBO（原理见 5.5）。显存峰值的主要控制手段，M1 必须落地。</p></div>
+        <div class="card"><span class="tag t-violet">生命周期</span><h4>三级所有权</h4><p>引擎级（设备、池）、素材级（Graph、Pass、LUT）、帧级（transient FBO、AI 快照、导入的外部纹理）。每级有明确 <code>Release()</code>，销毁顺序自帧级向上。</p></div>
+      </div>
+      <h3 id="p7-2">7.2 外部纹理与前后台</h3>
+      <ul>
+        <li><strong>所有权约定</strong>：宿主创建、宿主销毁；<code>ImportExternalTexture</code> 只生成本帧有效的包装，<strong>不接管、不缓存、不删除</strong>。宿主在帧间复用同一纹理 id 时，用 <code>hostFrameIndex</code> 区分，以便 trace 与 fence 正确关联。</li>
+        <li><strong>退后台</strong>：<code>OnPause()</code> 撤销 AI 任务、清空 FrameBufferPool 与 transient 资源，只保留素材级 CPU 数据；<code>OnResume()</code> 重建 GPU 资源后再接受 <code>RenderFrame</code>。</li>
+      </ul>
+      <div class="evidence"><b>验收方法：</b>连续 1000 帧记录 <code>allocatedFBO / textureBytes / handleCount</code> 三条曲线，必须稳定在平台期；素材反复装卸 50 次后显存回到基线 ±5%；前后台切换 20 次不黑屏、不泄漏。</div>
+    </section>
+
+    <!-- ============ 08 ============ -->
+    <section id="p8">
+      <div class="sec-head"><div class="sec-no">08</div><h2>算法接入规范</h2><div class="sub">Effects</div></div>
+      <p>目标不是堆效果数量，而是先固定<strong>「一个效果如何接进引擎」</strong>的标准形式，让后续加效果变成纯增量工作。</p>
+
+      <h3 id="p8-1">8.1 效果的四要素</h3>
+      <div class="flow">
+        <div class="step"><b>① Shader</b><code>.sc</code> 源码 + varying 定义<small>统一 uniform 命名与精度限定</small></div>
+        <div class="step"><b>② Pass 封装</b>C++ 类负责 uniform 打包<small>不含跨帧状态</small></div>
+        <div class="step"><b>③ 参数 Schema</b>字段名 / 范围 / 默认值<small>由生成器产出校验器与绑定</small></div>
+        <div class="step"><b>④ 金样图</b>固定输入下的期望输出<small>纳入 CI 回归</small></div>
+      </div>
+      <p>新增效果只需提交这四样，不修改 <code>core/</code> 或 <code>render/</code>；通过 <code>REGISTER_PASS("beauty/soft_skin", SoftSkinPass)</code> 接入。<strong>这套规范比效果本身更重要。</strong>由于 NormalizePass 已统一输入，效果 Shader 只需处理标准朝向的 RGBA8。</p>
+
+      <h3 id="p8-2">8.2 三种典型算法形态</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>形态</th><th>示例</th><th>实现要点</th></tr>
+        <tr><td>单 Pass 像素处理</td><td>LUT 调色、亮度对比、Sobel 风格化</td><td>64³ LUT 双 quad 插值 + 半像素偏移；统一 <code>strength</code> 与原图混合</td></tr>
+        <tr><td>多 Pass 链</td><td>磨皮、模糊 / 辉光</td><td>值域加权平滑 → 均值 / 方差自适应 → 高通锐化补偿；可分离高斯横竖两趟；中间 RT 交给别名分析复用</td></tr>
+        <tr><td>数据驱动形变</td><td>贴纸锚定、瘦脸 / 液化</td><td>AI 关键点 → 网格 / MLS 求解 → VS 中形变；强度按区域权重渐变，配合时域平滑</td></tr>
+      </table></div>
+
+      <h3 id="p8-3">8.3 稳定化与降级（先简单，够用就好）</h3>
+      <div class="grid g3">
+        <div class="card"><h4>时域稳定</h4><p>一阶 IIR（<code>y = 0.8y' + 0.2x</code>）+ 滑动均值 + 关键点丢失衰减。起步<strong>不要上卡尔曼</strong>：参数难调、收益有限，先用可解释的组合策略。</p></div>
+        <div class="card"><h4>错帧策略</h4><p>AI 队列深度 2；连续 30 帧耗时超阈值（如 33ms）则切到「取旧帧」模式；始终保留 last-good，无结果时用默认位姿。</p></div>
+        <div class="card"><h4>三级退档</h4><p>检测分辨率（短边 224 / 320 / 640）→ 推理后端（GPU / CPU）→ 效果开关（关掉最贵的 Pass）。预览场景还可先降处理分辨率（4.3）。由客观帧耗时触发，每次变化写 trace。</p></div>
+      </div>
+      <div class="note"><b>与实时渲染系统的共识：</b>「允许 AI 错一帧」不是妥协，而是实时系统的正确取舍——它把 AI 抖动与渲染帧率解耦。应在 L3 阶段就用可观测指标（队列长度、取帧年龄）验证，而不是等出现闪烁再补。</div>
+    </section>
+
+    <!-- ============ 09 ============ -->
+    <section id="p9">
+      <div class="sec-head"><div class="sec-no">09</div><h2>核心实现思想</h2><div class="sub">Core Ideas</div></div>
+      <div class="sec-intro"><b>本章回答：</b>开工前必须先想清楚的三件事：架构怎么分（9.1）、数据怎么组织（9.2）、线程之间怎么同步与通信（9.3、9.4）。最后把它们收敛成 7 条可在代码评审时逐条核对的不变量（9.5）。前面各章分散讲过的要点在这里串成一个整体，伪代码写法与 05 章一致。</div>
+
+      <h3 id="p9-1">9.1 架构：一个内核、三类插件、两条边界</h3>
+      <p>整套引擎可以压缩成一句话：<strong>一个只认时间戳的内核，按加载期编译好的表驱动三类插件；宿主被挡在 ABI 边界之外，可选能力由构建期边界决定是否存在。</strong></p>
+      <div class="grid g3">
+        <div class="card"><span class="tag t-teal">一个内核</span><h4>内核只做三件事</h4><p>持有帧循环（<code>Scheduler</code> 的五个阶段）、持有运行时状态（<code>IStateStore</code>）、执行编译好的渲染图（<code>RenderGraph</code> 执行器）。内核<strong>不认识任何具体效果、模型或平台</strong>。</p></div>
+        <div class="card"><span class="tag t-blue">三类插件</span><h4>Pass · Detector · Platform</h4><p>三类插件的接入方式相同：实现接口，再注册到表里。内核只按名字或特性查表装配，新增插件不改内核（见 8.1 的四要素）。</p></div>
+        <div class="card"><span class="tag t-violet">两条边界</span><h4>ABI 边界 · 构建期边界</h4><p>宿主只能看到 <code>Engine</code> 和 <code>FrameDesc</code>（5.1）。<code>features.json</code> 决定哪些插件进包；缺席的插件由 no-op 实现顶替，调用方无需写条件编译（10.1）。</p></div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <tr><th>插件</th><th>接口</th><th>如何注册</th><th>内核何时调用</th><th>缺席时</th></tr>
+        <tr><td>效果 Pass</td><td>输入纹理 + 参数 → 输出纹理，无跨帧状态</td><td>注册宏写入 Pass 工厂表</td><td>Render 阶段，按执行顺序表逐步调用</td><td>加载期标记为空操作，并上报一次</td></tr>
+        <tr><td>探测器</td><td><code>IDetector</code>（5.6）</td><td>由 <code>DetectorHub</code> 按特性装配</td><td>Detect 阶段投递，worker 线程里执行</td><td>空探测器中心，快照恒为默认值</td></tr>
+        <tr><td>平台</td><td><code>IPlatform</code>（5.7）</td><td>宿主创建后传入 <code>Create</code></td><td>启动、导入纹理、上屏时</td><td>不可缺席（核心能力）</td></tr>
+      </table></div>
+      <span class="code-title">启动装配 · 伪代码</span>
+<pre><code><span class="k">函数</span> <span class="t">Engine.Create</span>(config, platform):
+  device    = platform.CreateDevice(...)
+  pool      = 帧缓冲池(上限 = config.maxFrameBuffers)
+  passReg   = 全部已注册的 Pass 工厂          <span class="cm">// 编译期静态注册，启动后只读</span>
+  hub       = <span class="k">若</span> 启用(AI): 探测器中心(config.aiQueueDepth)
+              <span class="k">否则</span>:     空探测器中心           <span class="cm">// no-op 实现，调用方不写条件编译</span>
+  store     = 扁平状态存储()                  <span class="cm">// 满足 4.2 的升级信号后只换这一行</span>
+  scheduler.Register(InputImport, AssetSync, Timeline,
+                     DetectorSubmit, GraphExecute, Present)
+  scheduler.Compile()                         <span class="cm">// 依赖成环 → 立即失败，不拖到运行期</span>
+  <span class="k">返回</span> Engine{device, pool, passReg, hub, store, scheduler}</code></pre>
+      <div class="note"><b>控制反转是架构的骨架：</b>循环和时序只存在于内核，插件只是「被调用的函数」。因此插件之间<strong>无法直接互相调用</strong>，耦合只能经由两条可见的通道：参数表（状态存储）和 AI 快照。排查问题时，也只需要盯住这两处。</div>
+
+      <h3 id="p9-2">9.2 数据结构：五类数据，五种并发策略</h3>
+      <p>与其逐个记对象，不如先给数据分类。<strong>每一类数据都绑定一种固定的读写规则</strong>，并发安全由分类本身保证，而不是靠到处加锁。</p>
+      <div class="tbl-wrap"><table>
+        <tr><th>类别</th><th>典型对象</th><th>谁写</th><th>谁读</th><th>并发策略</th><th>生命周期</th></tr>
+        <tr><td>结构</td><td>素材运行时（已编译 Graph 的四张表）、Pass 工厂表、System 序列</td><td>加载 / 启动时构建一次</td><td>渲染线程</td><td><strong>构建后只读</strong>，无需同步；要变就整体重建再切换引用</td><td>素材级 / 引擎级</td></tr>
+        <tr><td>值</td><td>状态存储里的参数值、轨道求值结果、锚点</td><td>仅渲染线程</td><td>仅渲染线程</td><td><strong>单写者</strong>，无需加锁</td><td>素材级</td></tr>
+        <tr><td>结果</td><td>AI 快照</td><td>worker 写一次</td><td>渲染线程</td><td><strong>不可变 + 原子替换指针</strong>，读侧无锁</td><td>引用计数归零即释放</td></tr>
+        <tr><td>指令</td><td><code>SetParam</code>、切换素材、归还纹理</td><td>任意线程入队</td><td>渲染线程在 Prepare 统一出队</td><td><strong>消息队列</strong>，全系统唯一需要互斥的地方</td><td>出队即消亡</td></tr>
+        <tr><td>帧数据</td><td><code>FrameContext</code>、导入的外部纹理、临时 FBO</td><td>渲染线程</td><td>本帧的 System</td><td><strong>只活一帧</strong>，不得被长期持有</td><td>帧级</td></tr>
+      </table></div>
+      <span class="code-title">顶层对象与归属 · 伪代码</span>
+<pre><code><span class="k">数据</span> <span class="t">Engine</span>:                       <span class="cm">// 引擎级：Create → Release</span>
+  device      图形设备
+  pool        帧缓冲池
+  passReg     Pass 工厂表             <span class="cm">// 结构：启动后只读</span>
+  scheduler   已编译的 System 序列     <span class="cm">// 结构：启动后只读</span>
+  store       状态存储                <span class="cm">// 值：仅渲染线程写</span>
+  hub         探测器中心              <span class="cm">// 内含任务队列与快照槽</span>
+  inbox       命令队列                <span class="cm">// 指令：宿主 → 渲染线程的唯一入口</span>
+  current     素材运行时?             <span class="cm">// 切换素材 = 在 Prepare 中替换这个引用</span>
+  generation  整数                    <span class="cm">// 代际号：OnPause 时 +1，用来识别过期结果</span>
+
+<span class="k">数据</span> <span class="t">AssetRuntime</span>:                 <span class="cm">// 素材级：四张表见 0.4.2，构建后只读</span>
+  steps / rtTable / resources / paramLayout
+  subscriptions  AI 订阅列表          <span class="cm">// 由 @ai.* 锚点解析而来</span>
+
+<span class="k">数据</span> <span class="t">Snapshot</span>:                     <span class="cm">// 跨线程：worker 写一次，发布后只读</span>
+  frameTime   绝对时间
+  generation  整数                    <span class="cm">// 与 Engine.generation 不一致即视为过期</span>
+  result      DetectResult            <span class="cm">// 见 5.6；每个探测器一个快照槽</span>
+
+<span class="cm">// 帧级的 FrameContext 见 5.2：每帧构造，帧末失效</span></code></pre>
+      <div class="note blue"><b>一句话记住：</b>结构只读、值单写、结果不可变、指令走队列、帧数据不过夜。新增任何数据前，先问它属于哪一类；归不进任何一类，说明设计还要再想想。销毁顺序固定为<strong>帧级 → 素材级 → 引擎级</strong>（7.1）。</div>
+
+      <h3 id="p9-3">9.3 线程与通信通道</h3>
+      <p>线程职责见 6.5，这里只讲线程之间<strong>怎么传数据</strong>。全系统只有 5 条通道，每条都有明确的方向、容量和生效时机；不存在第 6 条「顺手共享一下」的路径。</p>
+      <div class="tbl-wrap"><table>
+        <tr><th>通道</th><th>方向</th><th>实现建议</th><th>满了 / 冲突时</th><th>何时生效</th></tr>
+        <tr><td>① 相机帧槽</td><td>相机回调 → 宿主 GL 线程</td><td>宿主侧单槽「最新值」</td><td>新帧覆盖旧帧</td><td>下一次 <code>RenderFrame</code></td></tr>
+        <tr><td>② 命令队列</td><td>任意宿主线程 → 渲染线程</td><td>MVP 用「互斥锁 + 双缓冲数组整体交换」，之后可换无锁多生产者队列</td><td>同一参数多次设置，只保留最后一次</td><td>下一帧 Prepare 统一生效</td></tr>
+        <tr><td>③ AI 任务队列</td><td>渲染线程 → worker</td><td>有界环形队列，深度 2；任务携带纹理、t、Fence、代际号</td><td>丢掉最旧的任务，并归还其纹理</td><td>worker 空闲即取</td></tr>
+        <tr><td>④ 快照槽</td><td>worker → 渲染线程</td><td>原子替换引用计数指针，每个探测器一个槽</td><td>新快照覆盖旧快照；代际号过期则直接丢弃</td><td>渲染线程下一次读取时</td></tr>
+        <tr><td>⑤ 回收通道</td><td>worker → 渲染线程</td><td>复用 ② 的命令队列（「归还纹理」指令）</td><td>—</td><td>下一帧 Prepare 归还 GPU 纹理</td></tr>
+      </table></div>
+      <p>下图把三条线程放在同一时间轴上：渲染线程每 33ms 跑一轮五阶段；AI 推理偶发变慢时，渲染线程继续使用旧快照，<strong>不会为此停下</strong>。</p>
+      <div class="dfd-wrap">
+        <svg class="dfd" viewBox="0 0 1000 356" role="img" aria-label="三线程协作时序图">
+          <defs>
+            <marker id="m9T" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0e8f8a"/></marker>
+            <marker id="m9A" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7048c4"/></marker>
+            <marker id="m9P" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#b8770d"/></marker>
+          </defs>
+
+          <!-- 泳道 -->
+          <rect x="6" y="6" width="988" height="80" rx="12" fill="#f4f6fa"/>
+          <rect x="6" y="94" width="988" height="112" rx="12" fill="#eef8f7"/>
+          <rect x="6" y="214" width="988" height="106" rx="12" fill="#f5f1fd"/>
+          <text class="lane" x="18" y="30">宿主线程</text>
+          <text class="bs" x="18" y="48">相机回调 / UI</text>
+          <text class="lane" x="18" y="118">渲染线程</text>
+          <text class="bs" x="18" y="136">唯一写者</text>
+          <text class="bs" x="18" y="152">永不等待</text>
+          <text class="lane" x="18" y="238">AI Worker</text>
+          <text class="bs" x="18" y="256">只读输入</text>
+          <text class="bs" x="18" y="272">只发快照</text>
+
+          <!-- 帧边界参考线 -->
+          <line x1="150" y1="14" x2="150" y2="330" stroke="#c9d3e1" stroke-dasharray="3 4"/>
+          <line x1="430" y1="14" x2="430" y2="330" stroke="#c9d3e1" stroke-dasharray="3 4"/>
+          <line x1="710" y1="14" x2="710" y2="330" stroke="#c9d3e1" stroke-dasharray="3 4"/>
+
+          <!-- 宿主：相机帧 -->
+          <rect class="box host" x="150" y="20" width="96" height="34" rx="8"/>
+          <text class="bt" x="198" y="42" text-anchor="middle">相机帧 N</text>
+          <rect class="box host" x="430" y="20" width="96" height="34" rx="8"/>
+          <text class="bt" x="478" y="42" text-anchor="middle">相机帧 N+1</text>
+          <rect class="box host" x="710" y="20" width="96" height="34" rx="8"/>
+          <text class="bt" x="758" y="42" text-anchor="middle">相机帧 N+2</text>
+          <line x1="170" y1="54" x2="170" y2="108" stroke="#0e8f8a" stroke-width="1.8" marker-end="url(#m9T)"/>
+          <line x1="450" y1="54" x2="450" y2="108" stroke="#0e8f8a" stroke-width="1.8" marker-end="url(#m9T)"/>
+          <line x1="730" y1="54" x2="730" y2="108" stroke="#0e8f8a" stroke-width="1.8" marker-end="url(#m9T)"/>
+
+          <!-- 宿主：SetParam 走命令队列 -->
+          <rect class="box st" x="570" y="20" width="110" height="34" rx="8"/>
+          <text class="bt" x="625" y="42" text-anchor="middle">SetParam</text>
+          <text class="lbl" x="615" y="74" text-anchor="middle">入命令队列 · 下帧 Prepare 生效</text>
+          <line x1="680" y1="37" x2="744" y2="108" stroke="#b8770d" stroke-width="1.6" marker-end="url(#m9P)"/>
+
+          <!-- 渲染线程：帧 N -->
+          <rect class="box st"  x="150" y="110" width="40" height="40" rx="4"/><text class="bs" x="170" y="134" text-anchor="middle">准备</text>
+          <rect class="box"     x="190" y="110" width="30" height="40" rx="4"/><text class="bs" x="205" y="134" text-anchor="middle">模拟</text>
+          <rect class="box ai"  x="220" y="110" width="34" height="40" rx="4"/><text class="bs" x="237" y="134" text-anchor="middle">投递</text>
+          <rect class="box key" x="254" y="110" width="90" height="40" rx="4"/><text class="bs" x="299" y="134" text-anchor="middle">渲染</text>
+          <rect class="box"     x="344" y="110" width="30" height="40" rx="4"/><text class="bs" x="359" y="134" text-anchor="middle">上屏</text>
+          <text class="lbl" x="299" y="170" text-anchor="middle">读快照 N-1</text>
+
+          <!-- 渲染线程：帧 N+1 -->
+          <rect class="box st"  x="430" y="110" width="40" height="40" rx="4"/><text class="bs" x="450" y="134" text-anchor="middle">准备</text>
+          <rect class="box"     x="470" y="110" width="30" height="40" rx="4"/><text class="bs" x="485" y="134" text-anchor="middle">模拟</text>
+          <rect class="box ai"  x="500" y="110" width="34" height="40" rx="4"/><text class="bs" x="517" y="134" text-anchor="middle">投递</text>
+          <rect class="box key" x="534" y="110" width="90" height="40" rx="4"/><text class="bs" x="579" y="134" text-anchor="middle">渲染</text>
+          <rect class="box"     x="624" y="110" width="30" height="40" rx="4"/><text class="bs" x="639" y="134" text-anchor="middle">上屏</text>
+          <text class="lbl" x="579" y="170" text-anchor="middle">读快照 N</text>
+
+          <!-- 渲染线程：帧 N+2 -->
+          <rect class="box st"  x="710" y="110" width="40" height="40" rx="4"/><text class="bs" x="730" y="134" text-anchor="middle">准备</text>
+          <rect class="box"     x="750" y="110" width="30" height="40" rx="4"/><text class="bs" x="765" y="134" text-anchor="middle">模拟</text>
+          <rect class="box ai"  x="780" y="110" width="34" height="40" rx="4"/><text class="bs" x="797" y="134" text-anchor="middle">投递</text>
+          <rect class="box key" x="814" y="110" width="90" height="40" rx="4"/><text class="bs" x="859" y="134" text-anchor="middle">渲染</text>
+          <rect class="box"     x="904" y="110" width="30" height="40" rx="4"/><text class="bs" x="919" y="134" text-anchor="middle">上屏</text>
+          <text class="lbl" x="830" y="172" style="fill:#0e8f8a;font-weight:600">仍读快照 N · 不等待</text>
+
+          <!-- 投递：任务 + Fence -->
+          <line x1="237" y1="150" x2="254" y2="222" stroke="#7048c4" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#m9A)"/>
+          <line x1="517" y1="150" x2="534" y2="222" stroke="#7048c4" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#m9A)"/>
+          <line x1="797" y1="150" x2="878" y2="222" stroke="#7048c4" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#m9A)"/>
+          <text class="lbl" x="262" y="196">投递任务 + Fence，立即返回</text>
+
+          <!-- AI worker：推理与发布 -->
+          <rect class="box ai" x="150" y="224" width="88" height="32" rx="7"/>
+          <text class="bt" x="194" y="245" text-anchor="middle">推理 N-1</text>
+          <rect class="box ai" x="254" y="224" width="212" height="32" rx="7"/>
+          <text class="bt" x="360" y="245" text-anchor="middle">推理 帧 N · 25ms</text>
+          <rect class="box ai" x="534" y="224" width="336" height="32" rx="7"/>
+          <text class="bt" x="702" y="245" text-anchor="middle">推理 帧 N+1 · 40ms（偶发变慢）</text>
+          <rect class="box ai" x="878" y="224" width="108" height="32" rx="7" stroke-dasharray="4 3"/>
+          <text class="bt" x="932" y="245" text-anchor="middle">推理 N+2</text>
+          <text class="lbl" x="984" y="304" text-anchor="end">N+2 先排队，N+1 完成后执行</text>
+
+          <polygon points="238,257 243,262 238,267 233,262" fill="#7048c4"/>
+          <text class="lbl" x="246" y="266">发布快照 N-1</text>
+          <polygon points="466,257 471,262 466,267 461,262" fill="#7048c4"/>
+          <text class="lbl" x="474" y="266">发布快照 N</text>
+          <polygon points="870,257 875,262 870,267 865,262" fill="#7048c4"/>
+          <text class="lbl" x="752" y="282">发布快照 N+1（赶不上帧 N+2 的渲染）</text>
+
+          <!-- 时间轴 -->
+          <line x1="150" y1="334" x2="990" y2="334" stroke="#9aa6ba" stroke-width="1.2"/>
+          <line x1="150" y1="330" x2="150" y2="338" stroke="#9aa6ba"/>
+          <line x1="430" y1="330" x2="430" y2="338" stroke="#9aa6ba"/>
+          <line x1="710" y1="330" x2="710" y2="338" stroke="#9aa6ba"/>
+          <line x1="990" y1="330" x2="990" y2="338" stroke="#9aa6ba"/>
+          <text class="lbl" x="150" y="351" text-anchor="middle">0</text>
+          <text class="lbl" x="430" y="351" text-anchor="middle">33 ms</text>
+          <text class="lbl" x="710" y="351" text-anchor="middle">66 ms</text>
+          <text class="lbl" x="986" y="351" text-anchor="end">100 ms</text>
+        </svg>
+      </div>
+      <p class="muted">读图要点：① 相机帧和 <code>SetParam</code> 都只在 Prepare 进入渲染线程，一帧之内参数不会中途变化；② 投递是非阻塞的，推理与渲染并行；③ 渲染开始时读到哪一份快照就用哪一份，帧 N+2 渲染时 N+1 的推理还没完成，就继续用快照 N（错 2 帧），画面照常输出。持续变慢时由 8.3 的错帧与退档策略接管。</p>
+
+      <h3 id="p9-4">9.4 同步通信骨架 · 伪代码</h3>
+      <p>把 9.3 的 5 条通道落到代码里，只需要下面这些函数。<strong>注意哪里会「等待」：只有 worker 和生命周期函数会等，渲染线程任何时候都不等。</strong></p>
+      <span class="code-title">同步通信骨架 · 伪代码</span>
+<pre><code><span class="cm">// ① 宿主任意线程：只入队，立即返回</span>
+<span class="k">函数</span> <span class="t">Engine.SetParam</span>(passId, key, 值):
+  inbox.推入(设参数{passId, key, 值})
+
+<span class="k">函数</span> <span class="t">Engine.LoadAsset</span>(字节):
+  运行时 = 校验 + 迁移 + 编译(字节)          <span class="cm">// 纯 CPU 工作，在调用线程完成</span>
+  <span class="k">若</span> 失败: <span class="k">返回</span> 错误
+  inbox.推入(切换素材{运行时})               <span class="cm">// GPU 资源留给渲染线程创建</span>
+  <span class="k">返回</span> 素材句柄
+
+<span class="cm">// ② 渲染线程 · Prepare：一次取出全部指令，之后本帧状态冻结</span>
+<span class="k">函数</span> <span class="t">处理指令</span>(ctx):
+  批 = inbox.整体交换()                      <span class="cm">// 每帧只拿一次锁</span>
+  <span class="k">循环</span> 批 中每条 cmd:
+    <span class="k">若</span> cmd 是 设参数:   store.SetParam(查下标(cmd.passId, cmd.key), cmd.值)  <span class="cm">// 同键后者覆盖</span>
+    <span class="k">若</span> cmd 是 切换素材: 创建 GPU 资源(cmd.运行时); current = cmd.运行时
+    <span class="k">若</span> cmd 是 归还纹理: AI 纹理池.归还(cmd.纹理)
+
+<span class="cm">// ③ 渲染线程 · Detect：投递即返回</span>
+<span class="k">函数</span> <span class="t">投递检测</span>(ctx):
+  tex = AI 纹理池.取出()                     <span class="cm">// 槽数 = 队列深度 + 1；取不到就本帧不投</span>
+  <span class="k">若</span> tex 为空: <span class="k">返回</span>
+  缩放(ctx 中的归一化纹理 → tex, 检测分辨率)
+  fence = device.插入Fence()                 <span class="cm">// 标记「tex 已写完」</span>
+  hub.任务队列.推入(任务{tex, ctx.t, fence, generation})  <span class="cm">// 满则丢最旧，并归还其 tex</span>
+
+<span class="cm">// ④ 渲染线程 · Render：读快照不加锁</span>
+<span class="k">函数</span> <span class="t">执行渲染图</span>(ctx):
+  快照 = hub.快照槽.原子读取()               <span class="cm">// 拿到即持有引用，本帧内不会变</span>
+  <span class="k">循环</span> current.steps 中每一步:
+    执行该步(参数 = store, 锚点 = 快照)
+
+<span class="cm">// ⑤ AI worker：唯一在常态下会「等待」的线程</span>
+<span class="k">循环</span>:
+  任务 = hub.任务队列.阻塞取出()
+  <span class="k">若</span> 任务.generation ≠ generation:
+    inbox.推入(归还纹理{任务.tex}); <span class="k">继续</span>      <span class="cm">// 过期任务直接作废</span>
+  等待(任务.fence)                           <span class="cm">// worker 等 GPU；渲染线程不等</span>
+  结果 = 探测器.Run(任务.tex)
+  inbox.推入(归还纹理{任务.tex})             <span class="cm">// GL 对象回到渲染线程处置</span>
+  hub.快照槽.原子替换(冻结(结果, 任务.t, 任务.generation))  <span class="cm">// 旧快照引用归零后自动释放</span>
+
+<span class="cm">// ⑥ 生命周期：仅有的同步点</span>
+<span class="k">函数</span> <span class="t">Engine.OnPause</span>():
+  generation += 1                            <span class="cm">// 之后到达的旧结果一律丢弃</span>
+  清空任务队列; 等待进行中的推理结束         <span class="cm">// 最多等一次推理耗时</span>
+  释放临时资源与 AI 纹理池</code></pre>
+      <div class="grid g3">
+        <div class="card"><span class="tag t-amber">为什么不用锁</span><h4>锁只剩一把</h4><p>命令队列的锁每帧只拿一次，持有时间是一次数组交换；快照槽是原子指针替换。<strong>渲染热路径上没有锁</strong>，也就不存在优先级反转和死锁。</p></div>
+        <div class="card"><span class="tag t-violet">为什么要 Fence</span><h4>CPU 先到，GPU 未完</h4><p>渲染线程提交「缩放到 tex」后立即返回，此时 GPU 可能还没写完。worker 必须先等 Fence 再读 tex，否则读到半帧数据，表现为花屏或检测框抖动。</p></div>
+        <div class="card"><span class="tag t-teal">为什么要代际号</span><h4>退后台后的「迟到结果」</h4><p>OnPause 之前投出的任务，结果可能在回前台后才到。代际号不一致就直接丢弃，避免旧结果覆盖新会话的快照。</p></div>
+      </div>
+
+      <h3 id="p9-5">9.5 七条不变量（代码评审清单）</h3>
+      <div class="hl">
+        <div class="item"><div><b>时间只从参数 t 进入</b>：任何模块都不读墙钟、不累加 dt（3.3、6.4）。</div></div>
+        <div class="item"><div><b>结构只读</b>：素材运行时、工厂表、System 序列一旦构建完成就不再修改；要变就整体重建，再在 Prepare 中切换引用。</div></div>
+        <div class="item"><div><b>值只有一个写者</b>：状态存储只在渲染线程写；宿主的修改一律经命令队列，在 Prepare 统一生效，保证同一帧看到的参数一致。</div></div>
+        <div class="item"><div><b>结果不可变</b>：AI 快照发布后只读；跨线程只传消息或不可变快照，绝不传可变对象的引用。</div></div>
+        <div class="item"><div><b>队列有界，满了丢旧</b>：任何队列都不能让生产者阻塞，也不能无限增长。</div></div>
+        <div class="item"><div><b>渲染线程永不等待</b>：等待只发生在 worker（等 Fence）以及 <code>OnPause</code> / <code>Release</code>（等推理收尾）。</div></div>
+        <div class="item"><div><b>GPU 对象只在渲染线程创建和销毁</b>：其他线程拿到的纹理必须配 Fence 使用，用完经回收通道交还。</div></div>
+      </div>
+      <div class="note"><b>与其他章节的关系：</b>本章是 03（分层）、05（接口契约）、06（一帧执行，以及 6.5 线程表）、07（资源所有权）的收束版。落地节奏按 12 章：M0 只需命令队列和生命周期（伪代码 ①②④⑥），M3 再补齐 AI 的任务队列、Fence、快照槽和代际号（③⑤）。</div>
+    </section>
+
+    <!-- ============ 10 ============ -->
+    <section id="p10">
+      <div class="sec-head"><div class="sec-no">10</div><h2>跨平台与能力裁剪</h2><div class="sub">Portability</div></div>
+      <h3 id="p10-1">10.1 单一事实源的四级裁剪</h3>
+      <span class="code-title">构建期配置 · 示意数据</span>
+<pre><code>{
+  <span class="s">"features"</span>: {
+    <span class="s">"FX_WITH_SCRIPT"</span>:  { <span class="s">"default"</span>: <span class="k">false</span>, <span class="s">"src"</span>: [<span class="s">"src/script/*"</span>],  <span class="s">"deps"</span>: [<span class="s">"quickjs"</span>] },
+    <span class="s">"FX_WITH_AI"</span>:      { <span class="s">"default"</span>: <span class="k">true</span>,  <span class="s">"src"</span>: [<span class="s">"src/ai/*"</span>],      <span class="s">"deps"</span>: [<span class="s">"onnxruntime"</span>] },
+    <span class="s">"FX_WITH_3D"</span>:      { <span class="s">"default"</span>: <span class="k">false</span>, <span class="s">"src"</span>: [<span class="s">"src/3d/*"</span>],      <span class="s">"deps"</span>: [<span class="s">"filament"</span>] },
+    <span class="s">"FX_WITH_EXPORT"</span>:  { <span class="s">"default"</span>: <span class="k">false</span>, <span class="s">"src"</span>: [<span class="s">"src/media/*"</span>],   <span class="s">"deps"</span>: [<span class="s">"ffmpeg"</span>] }
+  },
+  <span class="s">"profiles"</span>: {
+    <span class="s">"full"</span>:  [<span class="s">"FX_WITH_SCRIPT"</span>, <span class="s">"FX_WITH_AI"</span>, <span class="s">"FX_WITH_3D"</span>, <span class="s">"FX_WITH_EXPORT"</span>],
+    <span class="s">"lite"</span>:  [<span class="s">"FX_WITH_AI"</span>],
+    <span class="s">"min"</span>:   []
+  }
+}</code></pre>
+      <div class="flow">
+        <div class="step"><b>① 生成</b><code>features.h</code> + CMake 变量<small>构建期，脚本校验 profile 合法性</small></div>
+        <div class="step"><b>② 源码</b><code>#if FX_WITH_AI</code><small>只出现在接口边界，提供 no-op 默认实现</small></div>
+        <div class="step"><b>③ 编译</b>按 <code>src</code> 过滤源文件<small>被裁目录根本不进 target</small></div>
+        <div class="step"><b>④ 链接与素材</b>剔除 deps；素材 <code>requires</code> 校验降级<small>包体与运行行为一致</small></div>
+      </div>
+      <div class="note blue"><b>关键补强：</b>每个可选能力都提供<strong>编译期 no-op 实现</strong>（如 <code>NullDetectorHub</code>），调用方无需写 <code>#if</code>。这比常见的「到处散布条件编译」更干净，也让 <code>min</code> profile 天然能通过全部单测。相机预览属于核心能力，不可裁剪。</div>
+
+      <h3 id="p10-2">10.2 CI 特性矩阵</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>维度</th><th>取值</th><th>说明</th></tr>
+        <tr><td>平台</td><td>Linux(SwiftShader) / macOS / Windows / Android / iOS</td><td>Linux 无 GPU 环境承担大部分像素回归</td></tr>
+        <tr><td>Profile</td><td>min / lite / full</td><td>每个 profile 至少编译 + 跑单测</td></tr>
+        <tr><td>后端</td><td>GL ES / Metal / Vulkan / D3D11</td><td>Shader 在构建期对全后端编译，语法问题不过夜</td></tr>
+        <tr><td>构建类型</td><td>Debug / Release / ASan</td><td>ASan 重点覆盖资源释放与 AI 快照生命周期</td></tr>
+      </table></div>
+      <p class="muted">建议：PR 阶段跑 <code>min + lite / Linux</code> 快检（分钟级），夜间跑全矩阵与金样图（小时级）。</p>
+    </section>
+
+    <!-- ============ 11 ============ -->
+    <section id="p11">
+      <div class="sec-head"><div class="sec-no">11</div><h2>测试与可观测性</h2><div class="sub">Quality</div></div>
+      <div class="tbl-wrap"><table>
+        <tr><th>手段</th><th>覆盖对象</th><th>判定标准</th></tr>
+        <tr><td>单元测试</td><td>Scheduler 拓扑 / 环检测、Schema 校验、版本迁移、时间重映射、参数插值、资源池归还、<code>IStateStore</code> 实现</td><td>分支覆盖率 ≥ 70%，核心模块 ≥ 85%</td></tr>
+        <tr><td>金样图回归</td><td>每个效果 + 典型 Graph 组合；NormalizePass 的 4 种方向 × 镜像组合</td><td>SwiftShader 输出 PNG 与基线比对，按后端设像素容差</td></tr>
+        <tr><td>确定性回放</td><td>录制 <code>RenderFrame(t, frame)</code> 与 <code>SetParam</code> 序列（含相机预览会话），离线重放</td><td>两次运行逐像素一致（AI 快照一并归档）</td></tr>
+        <tr><td>资源 soak</td><td>1000 帧连续渲染 + 50 次素材装卸 + 20 次前后台切换</td><td>显存 / 句柄曲线平台化，无单调上升</td></tr>
+        <tr><td>性能基线</td><td>p50 / p95 帧耗时、GPU 时间、AI 队列长度、掉帧次数</td><td>相对基线退化超过阈值即阻断合入</td></tr>
+        <tr><td>素材 fuzz</td><td>随机 / 畸形 JSON、超长参数、悬空锚点、缺资源</td><td>永不崩溃，返回明确错误码与可读原因</td></tr>
+      </table></div>
+      <div class="grid g2">
+        <div class="card"><h4>Trace 设计</h4><p>每帧输出一条 Chrome Trace：Phase 分段、每个 Pass 的 GPU / CPU 耗时、AI 任务从投递到发布的年龄、FBO 分配归还、降级事件。由 <code>FrameContext.trace</code> 自动打点，业务代码零侵入。</p></div>
+        <div class="card"><h4>诊断开关</h4><p><code>FX_DUMP_FRAME_GRAPH</code>（导出 Graph dot 图）、<code>FX_DUMP_SHADER</code>、<code>FX_FORCE_CPU_DETECTOR</code> 等环境变量级开关，让线上问题可在本地复现。</p></div>
+      </div>
+    </section>
+
+    <!-- ============ 12 ============ -->
+    <section id="p12">
+      <div class="sec-head"><div class="sec-no">12</div><h2>分阶段实施路线</h2><div class="sub">Roadmap</div></div>
+      <p>工期为<strong>量级估算</strong>（2~3 名熟悉图形与移动端的工程师，单位：人周），用于排优先级而非承诺交付日期。每个阶段都必须产出可演示、可回归的增量。</p>
+
+      <div class="milestone">
+        <div class="meta">M0 · 4~6 人周 · 目标 L0</div>
+        <h4>最小可跑内核 + 真实相机预览</h4>
+        <ul>
+          <li>CMake + bgfx + 桌面 GL；定义 <code>Engine</code> / <code>FrameDesc</code> / <code>IPlatform</code> / <code>IRenderTarget</code>。</li>
+          <li><code>RenderFrame(t, frame)</code> 时间戳驱动、外部纹理零拷贝导入、一个 LUT Pass、Present；<code>FlatStateStore</code>。</li>
+          <li><code>NormalizePass</code> + 一个移动端的相机接入（OES 或 CVPixelBuffer）+ <code>OnPause / OnResume</code>（见 4.3、6.3）。</li>
+          <li>trace 与最简 profiler；第一张金样图。</li>
+        </ul>
+        <p><strong>验收：</strong>同 t 出图一致；1000 帧无句柄泄漏；修改 LUT 素材 JSON 即生效；相机预览 30fps、旋转 / 镜像 / 裁剪正确、前后台切换不黑屏。</p>
+      </div>
+      <div class="milestone">
+        <div class="meta">M1 · 8~12 人周 · 目标 L1</div>
+        <h4>渲染图与资源管理</h4>
+        <ul>
+          <li>Schema 校验器、Graph 编译器（拓扑排序 / 环检测 / RT 别名）、<code>FrameBufferPool</code> / <code>RendererPool</code>。</li>
+          <li>补齐 3 个效果（LUT、可分离高斯、混合贴纸）与 <code>REGISTER_PASS</code> 注册表；素材热加载 / 卸载。</li>
+          <li><strong>引入第 2 个移动平台</strong>，用平台差异倒逼 <code>IPlatform</code> 抽象收敛。</li>
+        </ul>
+        <p><strong>验收：</strong>5 Pass 串联时 FBO 数 ≤ 3；两平台金样图在容差内一致；素材装卸 50 次显存回到基线。</p>
+      </div>
+      <div class="milestone">
+        <div class="meta">M2 · 8~12 人周 · 目标 L2</div>
+        <h4>内容层：特效不再需要改 C++</h4>
+        <ul>
+          <li><code>params.yaml</code> + 代码生成器：产出 C++ 结构体、参数校验器、Schema 片段、脚本文档。</li>
+          <li>时间轴 / 关键帧 / 缓动求值、<code>SetParam</code> 热更新、<code>requires</code> 能力声明与降级、版本迁移器。</li>
+          <li>可选接入 QuickJS：只暴露「读参数、写参数、发事件」三类能力（经由 <code>IStateStore</code>），不暴露 RHI。</li>
+        </ul>
+        <p><strong>验收：</strong>新增组合特效只提交 JSON + 已有 Pass 参数；老素材自动迁移成功；脚本关闭时 <code>min</code> profile 全绿。</p>
+      </div>
+      <div class="milestone">
+        <div class="meta">M3 · 8~14 人周 · 目标 L3</div>
+        <h4>智能层：AI 异步与稳定化</h4>
+        <ul>
+          <li><code>IDetector</code> / <code>DetectorHub</code>：有界队列、Fence 同步、丢旧帧、不可变快照、last-good、依赖链。</li>
+          <li>接入人脸关键点、人像分割 2 个探测器与对应效果；解析 <code>@ai.*</code> 锚点引用。</li>
+          <li>时域平滑、错帧切换、三级退档；队列年龄与取帧策略纳入 trace。</li>
+          <li><strong>ECS 评估点</strong>：按 4.2 的升级信号检查，满足两条才把 <code>FlatStateStore</code> 换成 <code>EnTTStateStore</code>。</li>
+        </ul>
+        <p><strong>验收：</strong>30fps 下 AI 不阻塞渲染；注入 100ms 推理延迟时画面稳定无撕裂；模型缺失时素材降级出图且只上报一次。</p>
+      </div>
+      <div class="milestone">
+        <div class="meta">M4 · 10~16 人周 · 目标 L4</div>
+        <h4>产品化：后编辑、导出、矩阵</h4>
+        <ul>
+          <li>后编辑时间语义（seek / 变速 / 倒放 / 暂停）、Decode worker 帧预测、音视频同步与导出编码。</li>
+          <li><code>features.json</code> 四级裁剪 + CI 特性矩阵；Android JNI / iOS OC 门面；包体与启动耗时基线。</li>
+          <li>全量金样图、确定性回放、素材 fuzz、性能回归门禁。</li>
+        </ul>
+        <p><strong>验收：</strong>全矩阵 CI 绿；min / lite / full 三档包体差异可解释；回放逐像素一致。</p>
+      </div>
+      <div class="milestone">
+        <div class="meta">M5 · 持续 · 能力扩充</div>
+        <h4>效果库与高级能力</h4>
+        <p>按「四要素」规范扩充效果库；此时才评估 3D / 物理 / 完整脚本 DSL / 更多模型等重资产方向。原则：<strong>任何新能力都必须能缺席</strong>，且不得破坏 M0 定义的接口契约。</p>
+      </div>
+
+      <div class="note"><b>量级结论：</b>到「可演示 MVP（M0+M1）」约 <strong>3~4.5 人月</strong>；到「带 AI 的可用版本（M0~M3）」约 <strong>7~11 人月</strong>；到「产品化（M4）」约 <strong>10~15 人月</strong>。不追求一次对齐成熟引擎的规模——那是多年业务累积的结果。</div>
+    </section>
+
+    <!-- ============ 13 ============ -->
+    <section id="p13">
+      <div class="sec-head"><div class="sec-no">13</div><h2>风险与对策</h2><div class="sub">Risks</div></div>
+      <div class="tbl-wrap"><table>
+        <tr><th>风险</th><th>影响</th><th>对策</th><th>验证阶段</th></tr>
+        <tr><td>相机方向 / 格式碎片化</td><td>部分机型画面旋转、镜像错误或黑屏</td><td>方向逻辑只在 NormalizePass 一处；4 方向 × 镜像金样图；机型白名单回归</td><td>M0 / M1</td></tr>
+        <tr><td>跨后端像素不一致</td><td>金样图在不同平台差异大</td><td>统一 RHI 与 Shader 精度限定；固定采样器状态；按后端设容差基线并留档</td><td>M1</td></tr>
+        <tr><td>AI / 渲染时序错乱</td><td>花屏、闪烁、结果错位一帧</td><td>Fence + 不可变快照 + 有界队列 + last-good；禁止跨线程传裸纹理</td><td>M3</td></tr>
+        <tr><td>显存峰值 / 碎片</td><td>移动端 OOM、后台被杀</td><td>RT 别名 + 池上限 + 分辨率降级 + <code>OnPause</code> 释放策略</td><td>M1 / M4</td></tr>
+        <tr><td>状态模型选错</td><td>过早上 ECS 增加复杂度；过晚则迁移成本高</td><td>一切状态访问经 <code>IStateStore</code>；按 4.2 升级信号决策，只换实现不改调用方</td><td>M3 评估</td></tr>
+        <tr><td>素材版本漂移</td><td>老素材崩溃或效果错乱</td><td><code>schemaVersion</code> + 链式迁移器 + 加载期能力校验；fuzz 兜底</td><td>M2</td></tr>
+        <tr><td>脚本引入后调试困难</td><td>问题定位成本陡增</td><td>延后到 M2；脚本权限最小化；调用与异常全部进 trace</td><td>M2</td></tr>
+        <tr><td>依赖库绑定过深</td><td>后续替换代价高</td><td>RHI / 推理 / 脚本 / 状态存储全部包在自有接口后；CI 静态检查禁跨域 <code>#ifdef</code></td><td>M0 起持续</td></tr>
+        <tr><td>过早追求效果数量</td><td>骨架不稳、返工</td><td>每阶段只以「架构验证点」为验收，不把效果数量计入进度</td><td>全程</td></tr>
+        <tr><td>非确定性时间源渗入</td><td>seek / 回放失效</td><td>API 只暴露 <code>RenderFrame(t)</code>；评审禁止 System 读墙钟；回放测试门禁</td><td>M0 / M4</td></tr>
+      </table></div>
+    </section>
+
+    <!-- ============ 附 ============ -->
+    <section id="p14">
+      <div class="sec-head"><div class="sec-no">附</div><h2>示例 / 术语 / 索引</h2><div class="sub">Appendix</div></div>
+
+      <h3 id="p14-a">A · M0 阶段的桌面宿主示例</h3>
+      <span class="code-title">M0 宿主调用 · 伪代码（平台无关）</span>
+<pre><code>platform = 创建桌面平台()
+engine   = Engine.Create(配置{资源目录 = <span class="s">"assets/"</span>}, platform)
+engine.AttachSurface(platform.创建渲染目标(1280, 720))
+
+素材 = engine.LoadAssetFile(<span class="s">"assets/demo_soft_skin.json"</span>)
+<span class="k">若</span> 失败: 打印错误并退出
+
+<span class="cm">// 桌面用测试图纹理；t 为绝对时间</span>
+<span class="k">循环</span> t 从 0 到 3 秒，步长 1/30 秒:
+  frame = {
+    input:          测试纹理句柄,
+    width / height: 1280 / 720,
+    format:         RGBA8,
+    origin:         左上,
+    hostFrameIndex: 帧序号
+  }                              <span class="cm">// 相机字段保持默认值，无需填写</span>
+  engine.RenderFrame(t, frame)
+
+engine.Release()</code></pre>
+      <p class="muted">M0 全部代码量目标约 3~5 千行 C++（不含第三方）。远超这个量级，说明抽象被过早复杂化了。移动端相机宿主示例见 6.3。</p>
+
+      <h3 id="p14-b">B · 概念对照（与《架构设计概要》）</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>本方案</th><th>业界 / 成熟引擎中的常见做法</th><th>差异</th></tr>
+        <tr><td><code>Engine.RenderFrame(t, frame)</code></td><td>由输出对象按时间戳拉取一帧；相机纹理另走单独入口</td><td>合并为单一入口，输入纹理随帧传入</td></tr>
+        <tr><td><code>Scheduler</code> + Phase</td><td>引擎内部按注册顺序维护的多条处理单元执行队列</td><td>显式 order 与依赖拓扑，取代隐式注册顺序</td></tr>
+        <tr><td><code>IStateStore</code></td><td>ECS 的实体与组件存储</td><td>接口隔离；MVP 为扁平实现，按需换 EnTT</td></tr>
+        <tr><td><code>NormalizePass</code></td><td>输入预处理环节 → 规格统一的中间纹理</td><td>作为 Graph 第 0 节点，AI 与效果共享输出</td></tr>
+        <tr><td>显式 <code>renderGraph</code></td><td>组件树 → 树构建环节 → 渲染树</td><td>去掉中间推导层，编译期做别名分析</td></tr>
+        <tr><td><code>FrameBufferPool</code></td><td>帧缓冲池 + 取用辅助函数</td><td>思路一致，改为自有接口 + 上限降级</td></tr>
+        <tr><td><code>DetectorHub</code> / 快照</td><td>AI 能力单元 + 数据中转模块</td><td>接口更小，模型完全外置</td></tr>
+        <tr><td><code>features.json</code></td><td>多套 JSON 配置 + 构建期宏注入</td><td>单一事实源 + no-op 实现</td></tr>
+      </table></div>
+
+      <h3 id="p14-c">C · 判断依据</h3>
+      <div class="evidence" style="margin-top:4px"><b>说明：</b>本文对成熟引擎的描述只归纳<strong>可观察的架构行为</strong>，不依赖任何具体实现细节。4.2 的 ECS 判断来自「组合查询被大量使用、框架自带调度器未被使用、基类被改造成自有类型」这类结构性现象；4.3 的相机链路来自「外部纹理在进入效果链之前被统一成一种形态、方向与尺寸分开配置」这一通行设计。需要按文件定位源码时，见配套文档《架构设计概要》的源码阅读地图。</div>
+
+      <h3 id="p14-d">D · 文档索引与后续主题</h3>
+      <div class="chips">
+        <span><a href="architecture-overview.html">《架构设计概要》</a> — 成熟引擎怎么设计</span>
+        <span>《实现方案》（本文） — 自己怎么做</span>
+      </div>
+      <div class="note blue" style="margin-top:16px"><b>可继续展开的主题：</b>RenderGraph 编译器实现、Transient RT 别名算法、NormalizePass 的 YUV 转换与色彩空间、跨后端金样图容差体系、AI 快照的时序一致性、素材 Schema 完整字段表、QuickJS 绑定生成器、导出链路的音视频同步、性能预算分配模型。本文只给结论与契约，可按需就某一项提问。</div>
+    </section>
+
+    <footer>自研跨平台实时特效引擎 · 实现方案 v2.11 · 与《架构设计概要》配套使用</footer>
+  </main>
+</div>
+
+<div class="top-btn" id="topBtn" title="返回顶部">↑</div>
+
+<script>
+  (function(){
+    var links = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
+    var secs  = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    var bar   = document.getElementById('bar');
+    var btn   = document.getElementById('topBtn');
+
+    function onScroll(){
+      var h = document.documentElement.scrollHeight - window.innerHeight;
+      bar.style.width = (h > 0 ? (window.scrollY / h * 100) : 0) + '%';
+      btn.classList.toggle('show', window.scrollY > 400);
+      var idx = 0;
+      for (var i = 0; secs.length > i; i++){
+        if (secs[i]) {
+          if (141 > secs[i].getBoundingClientRect().top) idx = i;
+        }
+      }
+      links.forEach(function(a, i){ a.classList.toggle('active', i === idx); });
+    }
+    window.addEventListener('scroll', onScroll, {passive:true});
+    window.addEventListener('resize', onScroll);
+    btn.addEventListener('click', function(){ window.scrollTo({top:0, behavior:'smooth'}); });
+    onScroll();
+  })();
+</script>
+</body>
+</html>

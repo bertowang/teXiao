@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "demo_lut",
+  "scene": "camera",
+  "requires": ["shader.lut"],
+  "resources": {
+    "toneLut": { "type": "lut2d", "generator": "warm" }
+  },
+  "renderGraph": [
+    { "id": "input", "type": "Input", "out": "rt0" },
+    { "id": "tone", "type": "LUT", "shader": "lut", "lut": "@resources.toneLut",
+      "in": "rt0", "out": "rt1", "params": { "intensity": 0.85 } },
+    { "id": "out", "type": "Output", "in": "rt1" }
+  ],
+  "timeline": [],
+  "ui": { "label": "暖色 LUT", "primaryPass": "tone", "primaryParam": "intensity", "primaryRange": [0, 1] }
+}

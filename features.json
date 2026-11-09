@@ -1,0 +1,15 @@
+{
+  "comment": "单一事实源。tools/gen_features.py 生成 include/fx/generated/features.h 与 CMake 变量。相机预览是核心能力，不可裁剪。",
+  "features": {
+    "FX_WITH_SCRIPT":  { "default": false, "src": ["src/script/*"],  "deps": ["quickjs"] },
+    "FX_WITH_AI":      { "default": true,  "src": ["src/ai/*"],      "deps": ["onnxruntime"] },
+    "FX_WITH_3D":      { "default": false, "src": ["src/3d/*"],      "deps": ["filament"] },
+    "FX_WITH_EXPORT":  { "default": false, "src": ["src/media/*"],   "deps": ["ffmpeg"] }
+  },
+  "profiles": {
+    "full": ["FX_WITH_SCRIPT", "FX_WITH_AI", "FX_WITH_3D", "FX_WITH_EXPORT"],
+    "lite": ["FX_WITH_AI"],
+    "min":  []
+  },
+  "defaultProfile": "lite"
+}

@@ -1,0 +1,43 @@
+// shaders/common.msl —— 全后端共享约定的 Metal 实现；后续可按目录补 glsl / hlsl / spirv。
+// 由 tools/embed_shaders.py 拼成一段源码，运行时用 newLibraryWithSource 编译，
+// 因此 Xcode 工程不需要 .metal 构建规则，未来替换为 bgfx .sc 也不影响内核。
+#include <metal_stdlib>
+using namespace metal;
+
+struct Uniforms {
+    float4 p0;              // 通用尺寸 / 纹素 / 上屏宽高
+    float4 p1;              // 效果参数槽 0
+    float4 p2;              // 效果参数槽 1
+    float4 p3;              // 时间 / alpha / videoRange / flipY
+    float4 transform[3];    // 输出 uv -> 输入 uv 的 3x3 矩阵（按行）
+    float4 anchor;          // 锚点 x, y, 宽高比, 保留
+};
+
+struct VSOut {
+    float4 position [[position]];
+    float2 uv;
+};
+
+// 全屏三角形，无顶点缓冲。所有 Pass 共用同一套 uv 约定，故无需额外 Y 翻转。
+vertex VSOut vsFullscreen(uint vid [[vertex_id]]) {
+    const float2 pos[3] = { float2(-1.0, -1.0), float2(3.0, -1.0), float2(-1.0, 3.0) };
+    const float2 uvs[3] = { float2(0.0, 1.0), float2(2.0, 1.0), float2(0.0, -1.0) };
+    VSOut out;
+    out.position = float4(pos[vid], 0.0, 1.0);
+    out.uv = uvs[vid];
+    return out;
+}
+
+inline float2 transformedUV(float2 uv, constant Uniforms& U) {
+    float3 p = float3(uv, 1.0);
+    return float2(dot(p, U.transform[0].xyz), dot(p, U.transform[1].xyz));
+}
+
+// 64³ LUT 打成 8x8 的 64x64 小图，共 512x512。采样点夹在格内，避免跨格渗色。
+inline float2 lutUV(float2 rg, float blueIndex) {
+    float tileX = fmod(blueIndex, 8.0);
+    float tileY = floor(blueIndex / 8.0);
+    float2 inTile = clamp(rg, 0.5 / 64.0, 63.5 / 64.0);
+    return float2((tileX * 64.0 + inTile.x * 64.0) / 512.0,
+                  (tileY * 64.0 + inTile.y * 64.0) / 512.0);
+}
