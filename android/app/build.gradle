@@ -1,0 +1,56 @@
+plugins {
+    id 'com.android.application'
+}
+
+// 源码与素材沿用仓库的 src/platform/<os>/App/ + assets/ 分层，
+// Gradle 工程只是 Android 侧的构建壳（仿照 TeXiaoDemo.xcodeproj 的定位）。
+android {
+    namespace 'com.texiao.demo'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.texiao.demo'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+        ndk { abiFilters 'arm64-v8a' }
+        externalNativeBuild.cmake {
+            arguments '-DFX_BUILD_ANDROID_APP=ON',
+                      '-DFX_BUILD_TESTS=OFF',
+                      '-DFX_PROFILE=lite',
+                      '-DANDROID_STL=c++_static'
+            cppFlags '-std=c++17', '-Wall', '-Wextra'
+        }
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile '../../src/platform/android/App/AndroidManifest.xml'
+            java.srcDirs = ['../../src/platform/android/App/java']
+            res.srcDirs = ['../../src/platform/android/App/res']
+            // 5 个 JSON 素材直接打进 APK assets 根目录，不复制、不改 C++。
+            assets.srcDirs = ['../../assets']
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path 'src/main/cpp/CMakeLists.txt'
+            version '3.22.1'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+// 零第三方依赖：只使用 framework API + NDK（GLESv3 / EGL / android / log）。

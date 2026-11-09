@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "cmakeMinimumRequired": { "major": 3, "minor": 22, "patch": 0 },
   "configurePresets": [
     {
       "name": "host",
@@ -22,6 +22,18 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "FX_BUILD_TESTS": "ON",
         "FX_PROFILE": "min"
+      }
+    },
+    {
+      "name": "host-software",
+      "displayName": "CPU reference backend self-test (runs on any OS)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/host-software",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "FX_BUILD_TESTS": "ON",
+        "FX_BUILD_WIN_APP": "ON",
+        "FX_PROFILE": "lite"
       }
     },
     {
@@ -66,16 +78,47 @@
         "FX_BUILD_IOS_APP": "ON",
         "FX_PROFILE": "lite"
       }
+    },
+    {
+      "name": "windows-x64",
+      "displayName": "Windows Win32 demo (Visual Studio 2022)",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/windows-x64",
+      "cacheVariables": {
+        "FX_BUILD_TESTS": "ON",
+        "FX_BUILD_WIN_APP": "ON",
+        "FX_PROFILE": "lite"
+      }
+    },
+    {
+      "name": "android-arm64",
+      "displayName": "Android arm64 NDK library (needs ANDROID_NDK_HOME)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/android-arm64",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake",
+        "ANDROID_ABI": "arm64-v8a",
+        "ANDROID_PLATFORM": "android-24",
+        "ANDROID_STL": "c++_static",
+        "CMAKE_BUILD_TYPE": "Release",
+        "FX_BUILD_TESTS": "OFF",
+        "FX_BUILD_ANDROID_APP": "ON",
+        "FX_PROFILE": "lite"
+      }
     }
   ],
   "buildPresets": [
     { "name": "host", "configurePreset": "host" },
     { "name": "host-min", "configurePreset": "host-min" },
+    { "name": "host-software", "configurePreset": "host-software" },
     { "name": "mac", "configurePreset": "mac" },
     { "name": "ios-sim", "configurePreset": "ios-sim",
       "environment": { "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer" } },
     { "name": "ios-device", "configurePreset": "ios-device",
-      "environment": { "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer" } }
+      "environment": { "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer" } },
+    { "name": "windows-x64", "configurePreset": "windows-x64" },
+    { "name": "android-arm64", "configurePreset": "android-arm64" }
   ],
   "testPresets": [
     { "name": "host", "configurePreset": "host", "output": { "outputOnFailure": true } }

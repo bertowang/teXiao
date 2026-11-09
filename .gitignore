@@ -10,6 +10,14 @@ DerivedData/
 *.bin
 *.app/
 
+# ---- Android / Gradle ----
+android/.gradle/
+android/local.properties
+android/app/build/
+android/app/.cxx/
+.cxx/
+*.iml
+
 # ---- Xcode 用户态数据 ----
 xcuserdata/
 *.xcuserstate
@@ -21,6 +29,7 @@ xcuserdata/
 *.swp
 .idea/
 .vscode/
+.vs/
 
 # ---- Python 代码生成脚本 ----
 __pycache__/
